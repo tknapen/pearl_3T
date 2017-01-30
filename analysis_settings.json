@@ -1,0 +1,15 @@
+{
+"bet_f_value":  0.15,
+"bet_g_value":  0.0,
+"use_FS": 1,
+"do_fnirt": 0,
+"which_file_is_EPI_space": "middle",
+"dilate_kernel_size": 8.0,
+"psc_func": "median",
+"av_across_runs_func": "median",
+"retroicor_order_or_timing": "timing",
+"moco_method": "AFNI",
+"perform_mri": 1,
+"avg_subjects_fsid": "fsaverage",
+"label_folders": []
+}

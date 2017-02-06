@@ -1,66 +1,5 @@
 from __future__ import division, print_function
 
-def convert_edf_2_hdf5(edf_file, low_pass_pupil_f = 6.0, high_pass_pupil_f = 0.01):
-    """converts the edf_file to hdf5 using hedfpy
-    
-    Requires hedfpy
-
-    Parameters
-    ----------
-    edf_file : str
-        absolute path to edf file.
-    low_pass_pupil_f : float
-        low pass cutoff frequency for band-pass filtering of the pupil signal
-    high_pass_pupil_f : float
-        high pass cutoff frequency for band-pass filtering of the pupil signal
-    Returns
-    -------
-    hdf5_file : str
-        absolute path to hdf5 file.
-    """
-
-    import os
-    import os.path as op
-    from hedfpy import HDFEyeOperator
-    import tempfile
-
-    tempdir = tempfile.mkdtemp()
-    temp_edf = op.join(tempdir, op.split(edf_file)[-1])
-
-    os.system('cp ' + edf_file + ' ' + temp_edf)
-
-    hdf5_file = op.join(tempdir, op.split(op.splitext(edf_file)[0] + '.h5')[-1])
-    alias = op.splitext(op.split(edf_file)[-1])[0]
-
-    ho = HDFEyeOperator(hdf5_file)
-    ho.add_edf_file(temp_edf)
-    ho.edf_message_data_to_hdf(alias = alias)
-    ho.edf_gaze_data_to_hdf(alias = alias, pupil_hp = high_pass_pupil_f, pupil_lp = low_pass_pupil_f)
-
-    return hdf5_file
-
-def combine_eye_hdfs_to_nii_hdf(nii_hdf5_file, eye_hdf_filelist, new_alias = 'eye'):
-    import os.path as op
-    import tables as tb
-
-    nii_hf = tb.open_file(nii_hdf5_file, 'a') 
-    eye_hfs = [tb.open_file(ef, 'r') for ef in eye_hdf_filelist]
-    eye_group_names = [op.splitext(op.split(ef)[-1])[0] for ef in eye_hdf_filelist]
-
-    try:
-        nii_group = nii_hf.get_node("/", name = new_alias, classname='Group')
-    except tb.NoSuchNodeError:
-        print('Adding group ' + new_alias + ' to ' + nii_hdf5_file)
-        nii_group = nii_hf.create_group("/", new_alias, new_alias)
-
-    for ef, en in zip(eye_hfs, eye_group_names):
-        ef.copy_node(where = '/' + en, newparent = nii_group, newname = en, overwrite = True, recursive = True)
-        ef.close()
-
-    nii_hf.close()
-
-    return nii_hdf5_file
-
 def mask_nii_2_hdf5(in_files, mask_files, hdf5_file, folder_alias):
     """masks data in in_files with masks in mask_files,
     to be stored in an hdf5 file
@@ -216,110 +155,54 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
 
     return all_roi_data_np
 
-def leave_one_out_lists(input_list):
-    """leave_one_out_lists takes creates a list of lists, with each element
-    of the input_list left out of the returned lists once, in order.
-
-
-    Parameters
-    ----------
-    input_list : list
-        list of items, for instance absolute paths to nii files
-
-    Returns
-    -------
-    output_data : list
-        list of lists
-    """
-
-    out_lists = []
-    for x in input_list:
-        out_lists.append([y for y in input_list if y != x])
-
-    return out_lists
-
-def suff_file_name(in_file, suff = '_av_loo', extension = '.nii.gz' ):
-    out_file = in_file[:-len(extension)] + suff + extension
-
-    return out_file
-
-def combine_cv_prf_fit_results_all_runs(basedir, fit_dir, nr_slices = 51):
-    """combine_fit_results_one_fold combines a per-slice
-    
-    Requires hedfpy
-
-    Parameters
-    ----------
-    basedir : str
-        absolute path to directory in which to recursively search for the input
-        files to the fits that happened on cartesius.
-    fit_dir : str
-        absolute path to directory in which to find the fit result files.
-    nr_slices : int (default: 51)
-        number of slices in nii files
-
-    Returns
-    -------
-    output_files : list
-        absolute paths to output nifti files.
-    """   
-
-    import os
+def convert_mapper_data_to_RL(workflow_output_directory, sub_id, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
+    import os.path as op
     import glob
+    import nipype.pipeline as pe
+    from nipype.interfaces import fsl
+    from nipype.interfaces import freesurfer
+    from nipype.interfaces.utility import Function, IdentityInterface
+    import nipype.interfaces.io as nio
 
-    all_files = glob.glob(os.path.join(basedir, '*.nii.gz'))
-    loo_files = glob.glob(os.path.join(basedir, 'loo', '*.nii.gz'))
+    input_folder = workflow_output_directory.replace(str_repl[0], str_repl[1])
+    input_files = glob.glob(op.join(input_folder, stat_re + '*.nii.gz'))
 
-    all_files.extend(loo_files)
-    all_files_no_ext = [os.path.join(fit_dir, os.path.split(afl)[-1][:-7]) for afl in all_files]
+    ### NODES
+    input_node = pe.Node(IdentityInterface(
+        fields=['input_files', 
+        'output_folder', 
+        'mapper_2_hires_reg', 
+        'hires_2_rl_reg',
+        'template_file']), name='inputspec')
 
-    output_files = []
-    for basefilename in all_files_no_ext:
-        output_files.append(
-            combine_cv_prf_fit_results_one_fold(basefilename = basefilename, nr_slices = nr_slices)
-            )
+    input_node.inputs.input_files = input_files
+    input_node.inputs.output_folder = op.join(workflow_output_directory, 'mapper_stat')
+    input_node.inputs.mapper_2_hires_reg = op.join(input_folder, 'reg', 'examplefunc2hires.mat')
+    input_node.inputs.hires_2_rl_reg = op.join(workflow_output_directory, 'reg', 'hires2example_func.mat')
+    input_node.inputs.template_file = op.join(workflow_output_directory, 'reg', 'example_func.nii.gz')
 
-    return output_files
-
-def combine_cv_prf_fit_results_one_fold(basefilename, nr_slices = 51):
-    """combine_fit_results_one_fold combines a per-slice
+    concat_N = pe.Node(fsl.ConvertXFM(concat_xfm = True), name = 'concat_N')
+    vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc'), name='vol_trans', iterfield = ['in_file'])
     
+    datasink = pe.Node(nio.DataSink(), name='sinker')
+    datasink.inputs.parameterization = False
 
-    Parameters
-    ----------
-    basefilename : str
-        absolute path to stem of per-slice files.
-    nr_slices : int (default: 51)
-        number of slices in nii files
+    ### WORKFLOW
+    convert_mapper_data_to_RL_workflow = pe.Workflow(name='mapper2RL')
 
-    Returns
-    -------
-    output_file : str
-        absolute path to output nifti file.
-    """    
-    import os
-    import nibabel as nb
-    import glob
-    import numpy as np
+    convert_mapper_data_to_RL_workflow.connect(input_node, 'mapper_2_hires_reg', concat_N, 'in_file')
+    convert_mapper_data_to_RL_workflow.connect(input_node, 'hires_2_rl_reg', concat_N, 'in_file2')
 
-    in_files = sorted(glob.glob(basefilename + '*.nii.gz'))
-    output_file = os.path.join(basefilename + '_est_all.nii.gz')
+    convert_mapper_data_to_RL_workflow.connect(concat_N, 'out_file', vol_trans_node, 'in_matrix_file')
+    convert_mapper_data_to_RL_workflow.connect(input_node, 'input_files', vol_trans_node, 'in_file')
+    convert_mapper_data_to_RL_workflow.connect(input_node, 'template_file', vol_trans_node, 'reference')
 
-    print('creating ' + output_file)
+    convert_mapper_data_to_RL_workflow.connect(input_node, 'output_folder', datasink, 'base_directory')
+    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', datasink, op.split(input_folder)[-1])
 
-    all_fit_files = [basefilename + '_est_%s.nii.gz'%str(i).zfill(2) for i in range(nr_slices)]
+    convert_mapper_data_to_RL_workflow.run('MultiProc', plugin_args={'n_procs': 24})
 
-    nif = nb.load(all_fit_files[0])
-    all_fits = np.zeros(nif.get_data().shape)
-
-    for i, aff in enumerate(all_fit_files):
-        nif = nb.load(aff)
-        all_fits[:,:,i,:] = nif.get_data()[:,:,i,:]
-
-    img = nb.Nifti1Image(all_fits, affine=nif.affine, header=nif.header)
-    img.to_filename(output_file)
-
-    return output_file
+    return convert_mapper_data_to_RL.vol_trans_node.out_file
 
 def natural_sort(l):
     import re

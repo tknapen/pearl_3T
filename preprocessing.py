@@ -11,6 +11,16 @@ from nipype import config, logging
 import matplotlib.pyplot as plt
 import nipype.interfaces.fsl as fsl
 import nipype.pipeline.engine as pe
+#
+#   run as in:
+#
+# for s in {001..049}
+# do
+#     echo sub-$s
+#     python preprocessing.py sub-$s map &
+#     python preprocessing.py sub-$s rl 
+# done
+
 import nipype.interfaces.utility as util
 import nipype.interfaces.io as nio
 import nibabel as nib

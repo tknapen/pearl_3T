@@ -11,5 +11,5 @@
 "moco_method": "AFNI",
 "perform_mri": 1,
 "avg_subjects_fsid": "fsaverage",
-"label_folders": []
+"label_folders": ["aparc.a2009s"]
 }

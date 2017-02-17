@@ -109,6 +109,7 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
     import itertools
     import fnmatch
     import numpy as np
+    from IPython import embed as shell
 
     h5file = tables.open_file(hdf5_file, mode = "r")
 
@@ -147,15 +148,17 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
             data_arrays.append([])
             for dan in selected_data_array_names:
                 data_arrays[-1].append(eval('roi_node.__getattr__("' + dan + '").read()'))
-
+            
             data_arrays[-1] = np.hstack(data_arrays[-1]) # stack across timepoints or other values per voxel
+            if len(data_arrays[-1].shape) == 1:
+                data_arrays[-1] = data_arrays[-1][:,np.newaxis]
     all_roi_data_np = np.vstack(data_arrays)    # stack across regions to create a single array of voxels by values (i.e. timepoints)
 
     h5file.close()
 
     return all_roi_data_np
 
-def convert_mapper_data_to_RL(workflow_output_directory, sub_id, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
+def convert_mapper_data_to_RL(workflow_output_directory, sub_id, hires_2_rl_reg, example_func, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
     import os.path as op
     import glob
     import nipype.pipeline as pe
@@ -163,9 +166,11 @@ def convert_mapper_data_to_RL(workflow_output_directory, sub_id, str_repl = ['/r
     from nipype.interfaces import freesurfer
     from nipype.interfaces.utility import Function, IdentityInterface
     import nipype.interfaces.io as nio
+    from IPython import embed as shell
 
     input_folder = workflow_output_directory.replace(str_repl[0], str_repl[1])
     input_files = glob.glob(op.join(input_folder, stat_re + '*.nii.gz'))
+    input_files.append(op.join(input_folder, 'reg', 'example_func.nii.gz'))
 
     ### NODES
     input_node = pe.Node(IdentityInterface(
@@ -175,14 +180,17 @@ def convert_mapper_data_to_RL(workflow_output_directory, sub_id, str_repl = ['/r
         'hires_2_rl_reg',
         'template_file']), name='inputspec')
 
-    input_node.inputs.input_files = input_files
-    input_node.inputs.output_folder = op.join(workflow_output_directory, 'mapper_stat')
-    input_node.inputs.mapper_2_hires_reg = op.join(input_folder, 'reg', 'examplefunc2hires.mat')
-    input_node.inputs.hires_2_rl_reg = op.join(workflow_output_directory, 'reg', 'hires2example_func.mat')
-    input_node.inputs.template_file = op.join(workflow_output_directory, 'reg', 'example_func.nii.gz')
+    output_node = pe.Node(IdentityInterface(
+        fields=['output_files']), name='outputspec')
 
-    concat_N = pe.Node(fsl.ConvertXFM(concat_xfm = True), name = 'concat_N')
-    vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc'), name='vol_trans', iterfield = ['in_file'])
+    input_node.inputs.input_files = input_files
+    input_node.inputs.output_folder = workflow_output_directory # op.join(workflow_output_directory, 'mapper_stat')
+    input_node.inputs.mapper_2_hires_reg = op.join(input_folder, 'reg', 'example_func2highres.mat')
+    input_node.inputs.hires_2_rl_reg = hires_2_rl_reg # op.join(workflow_output_directory, 'reg', 'highres2example_func.mat')
+    input_node.inputs.template_file = example_func # op.join(workflow_output_directory, 'reg', 'example_func.nii.gz')
+
+    concat_N = pe.Node(fsl.ConvertXFM(concat_xfm = True), name = 'concat_Mapper')
+    vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc', padding_size = 0), name='vol_trans', iterfield = ['in_file'])
     
     datasink = pe.Node(nio.DataSink(), name='sinker')
     datasink.inputs.parameterization = False
@@ -198,11 +206,16 @@ def convert_mapper_data_to_RL(workflow_output_directory, sub_id, str_repl = ['/r
     convert_mapper_data_to_RL_workflow.connect(input_node, 'template_file', vol_trans_node, 'reference')
 
     convert_mapper_data_to_RL_workflow.connect(input_node, 'output_folder', datasink, 'base_directory')
-    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', datasink, op.split(input_folder)[-1])
+    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', datasink, 'mapper_stat')
+    
+    convert_mapper_data_to_RL_workflow.connect(concat_N, 'out_file', datasink, 'mapper_stat.mat')
+    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', output_node, 'output_files')
 
     convert_mapper_data_to_RL_workflow.run('MultiProc', plugin_args={'n_procs': 24})
 
-    return convert_mapper_data_to_RL.vol_trans_node.out_file
+    out_files = glob.glob(op.join(workflow_output_directory, 'mapper_stat', '*.nii.gz'))
+
+    return out_files
 
 def natural_sort(l):
     import re

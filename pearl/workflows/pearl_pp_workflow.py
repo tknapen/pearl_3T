@@ -2,11 +2,11 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
     import os.path as op
     import nipype.pipeline as pe
     import tempfile
+    import glob
     from nipype.interfaces import fsl
     from nipype.interfaces.utility import Function, Merge, IdentityInterface
     from spynoza.nodes.utils import get_scaninfo, dyns_min_1, topup_scan_params, apply_scan_params
     from nipype.interfaces.io import SelectFiles, DataSink
-
 
     # Importing of custom nodes from spynoza packages; assumes that spynoza is installed:
     # pip install git+https://github.com/spinoza-centre/spynoza.git@develop
@@ -38,7 +38,10 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
                     'standard_file', 
                     'psc_func', 
                     'tr',
-                    'exp_shorthand']), name='inputspec')
+                    'exp_shorthand',
+                    'masks']), name='inputspec')
+    # get standard masks from MNI space
+    input_node.inputs.masks = glob.glob(op.join(analysis_info['MNI_mask_folder'], '*.nii.gz'))
 
     # i/o node
     datasource_templates = dict(func='{sub_id}/func/*{exp_shorthand}*_bold.nii.gz', behavior='{sub_id}/func/*{exp_shorthand}*_bold.tsv')
@@ -68,7 +71,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
     # node for conversion of mapper data to RL
     mapper_convert = pe.Node(Function(input_names=['workflow_output_directory', 'sub_id', 'hires_2_rl_reg', 'example_func'],
                                     output_names=['out_files'],
-                                    function=convert_mapper_data_to_RL),
+                                    function=convert_mapper_data_to_session),
                       name='mapper_convert')
 
     hdf5_psc_masker = pe.Node(Function(input_names = ['in_files', 'mask_files', 'hdf5_file', 'folder_alias'], output_names = ['hdf5_file'],
@@ -81,6 +84,11 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
                                     function = mask_nii_2_hdf5), 
                                     name = 'hdf5_stats_masker')
     hdf5_stats_masker.inputs.folder_alias = 'stats'
+
+    vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc', padding_size = 0), name='vol_trans', iterfield = ['in_file'])
+    thresh_node = pe.MapNode(fsl.Threshold(thresh = 0.001, args = '-bin', output_datatype = 'int'), name='thresh', iterfield = ['in_file'])
+
+    merge_masks = pe.Node(Merge(len(analysis_info['label_folders']) + 2), name='merge_masks')
 
     datasink = pe.Node(DataSink(), name='sinker')
     datasink.inputs.parameterization = False
@@ -134,6 +142,14 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
         pearl_pp_workflow.connect(sgfilter, 'out_file', output_node, 'temporal_filtered_files')
         pearl_pp_workflow.connect(psc, 'out_file', output_node, 'percent_signal_change_files')
 
+        # gather MNI mask files
+        pearl_pp_workflow.connect(input_node, 'masks', vol_trans_node, 'in_file')
+        pearl_pp_workflow.connect(reg, 'rename_standard2example_func.out_file', vol_trans_node, 'in_matrix_file')
+        pearl_pp_workflow.connect(reg, 'rename_example_func.out_file', vol_trans_node, 'reference')
+
+        pearl_pp_workflow.connect(vol_trans_node, 'out_file', thresh_node, 'in_file' )
+        pearl_pp_workflow.connect(thresh_node, 'out_file', datasink, 'masks.MNI')
+
     ########################################################################################
     # masking stuff if doing mri analysis
     ########################################################################################
@@ -142,7 +158,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
         masking_list = []
         dilate_list = []
         # lllist = []
-        for opd, label_directory in zip(['dc'] + analysis_info['label_folders'],[''] + analysis_info['label_folders']):
+        for opd, label_directory in zip(['dc'] + analysis_info['label_folders'], [''] + analysis_info['label_folders']):
             # if label_directory != '':
             #     lllist.append(pe.Node(Function(input_names=['avg_sj', 'trg_sj', 'label_directory'],
             #                     output_names=['output_files'],
@@ -174,7 +190,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
             pearl_pp_workflow.connect(dilate_list[-1], 'out_file', datasink, 'masks.'+opd)
 
         # import stats for mapper GLM across sessions
-        if analysis_info['experiment'] == 'rl':
+        if analysis_info['experiment'] in ['rl', 'ssrt']:
             # we assume the mapper's already run
             pearl_pp_workflow.connect(input_node, 'output_directory', mapper_convert, 'workflow_output_directory')
             pearl_pp_workflow.connect(input_node, 'sub_id', mapper_convert, 'sub_id')
@@ -184,12 +200,17 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
 
             # to H5 file
             pearl_pp_workflow.connect(psc, 'out_file', hdf5_psc_masker, 'in_files')
-            pearl_pp_workflow.connect(dilate_list[-1], 'out_file', hdf5_psc_masker, 'mask_files')
+
+            for i in range(len(analysis_info['label_folders'])+1):
+                pearl_pp_workflow.connect(dilate_list[i], 'out_file', merge_masks, 'in'+str(i+1))
+            # also add rois from MNI for hdf5 transplant
+            pearl_pp_workflow.connect(vol_trans_node, 'out_file', merge_masks, 'in'+str(i+2))
+            pearl_pp_workflow.connect(merge_masks, 'out', hdf5_psc_masker, 'mask_files')
 
             # the hdf5_file is created by the psc node, and then passed from masker to masker on into the datasink.
             pearl_pp_workflow.connect(hdf5_psc_masker, 'hdf5_file', hdf5_stats_masker, 'hdf5_file')
             pearl_pp_workflow.connect(mapper_convert, 'out_files', hdf5_stats_masker, 'in_files')
-            pearl_pp_workflow.connect(dilate_list[-1], 'out_file', hdf5_stats_masker, 'mask_files')
+            pearl_pp_workflow.connect(merge_masks, 'out', hdf5_stats_masker, 'mask_files')
             pearl_pp_workflow.connect(hdf5_stats_masker, 'hdf5_file', datasink, 'h5')
 
     ########################################################################################

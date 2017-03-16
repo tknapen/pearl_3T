@@ -68,6 +68,8 @@ if experiment == 'rl':
     pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'RL'
 elif experiment == 'map':
     pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'ppaffalo'
+elif experiment == 'ssrt':
+    pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'Stopsignal'
 
 # standard output variables
 pearl_pp_workflow.inputs.inputspec.raw_directory = raw_data_dir

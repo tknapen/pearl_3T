@@ -158,7 +158,7 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
 
     return all_roi_data_np
 
-def convert_mapper_data_to_RL(workflow_output_directory, sub_id, hires_2_rl_reg, example_func, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
+def convert_mapper_data_to_session(workflow_output_directory, sub_id, hires_2_rl_reg, example_func, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
     import os.path as op
     import glob
     import nipype.pipeline as pe
@@ -196,22 +196,22 @@ def convert_mapper_data_to_RL(workflow_output_directory, sub_id, hires_2_rl_reg,
     datasink.inputs.parameterization = False
 
     ### WORKFLOW
-    convert_mapper_data_to_RL_workflow = pe.Workflow(name='mapper2RL')
+    convert_mapper_data_to_session_workflow = pe.Workflow(name='mapper2session')
 
-    convert_mapper_data_to_RL_workflow.connect(input_node, 'mapper_2_hires_reg', concat_N, 'in_file')
-    convert_mapper_data_to_RL_workflow.connect(input_node, 'hires_2_rl_reg', concat_N, 'in_file2')
+    convert_mapper_data_to_session_workflow.connect(input_node, 'mapper_2_hires_reg', concat_N, 'in_file')
+    convert_mapper_data_to_session_workflow.connect(input_node, 'hires_2_session_reg', concat_N, 'in_file2')
 
-    convert_mapper_data_to_RL_workflow.connect(concat_N, 'out_file', vol_trans_node, 'in_matrix_file')
-    convert_mapper_data_to_RL_workflow.connect(input_node, 'input_files', vol_trans_node, 'in_file')
-    convert_mapper_data_to_RL_workflow.connect(input_node, 'template_file', vol_trans_node, 'reference')
+    convert_mapper_data_to_session_workflow.connect(concat_N, 'out_file', vol_trans_node, 'in_matrix_file')
+    convert_mapper_data_to_session_workflow.connect(input_node, 'input_files', vol_trans_node, 'in_file')
+    convert_mapper_data_to_session_workflow.connect(input_node, 'template_file', vol_trans_node, 'reference')
 
-    convert_mapper_data_to_RL_workflow.connect(input_node, 'output_folder', datasink, 'base_directory')
-    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', datasink, 'mapper_stat')
+    convert_mapper_data_to_session_workflow.connect(input_node, 'output_folder', datasink, 'base_directory')
+    convert_mapper_data_to_session_workflow.connect(vol_trans_node, 'out_file', datasink, 'mapper_stat')
     
-    convert_mapper_data_to_RL_workflow.connect(concat_N, 'out_file', datasink, 'mapper_stat.mat')
-    convert_mapper_data_to_RL_workflow.connect(vol_trans_node, 'out_file', output_node, 'output_files')
+    convert_mapper_data_to_session_workflow.connect(concat_N, 'out_file', datasink, 'mapper_stat.mat')
+    convert_mapper_data_to_session_workflow.connect(vol_trans_node, 'out_file', output_node, 'output_files')
 
-    convert_mapper_data_to_RL_workflow.run('MultiProc', plugin_args={'n_procs': 24})
+    convert_mapper_data_to_session_workflow.run('MultiProc', plugin_args={'n_procs': 24})
 
     out_files = glob.glob(op.join(workflow_output_directory, 'mapper_stat', '*.nii.gz'))
 
@@ -222,3 +222,57 @@ def natural_sort(l):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
     alphanum_key = lambda key: [ convert(c) for c in re.split('([0-9]+)', key) ]
     return sorted(l, key = alphanum_key)
+
+def import_MNI_masks(mask_folder, example_func, standard2example_func, output_folder):
+    """Import MNI space masks to example_func space.
+    """
+
+    import os.path as op
+    import glob
+    import nipype.pipeline as pe
+    from nipype.interfaces import fsl
+    from nipype.interfaces.utility import Function, IdentityInterface
+    import nipype.interfaces.io as nio
+    from IPython import embed as shell
+
+    ### NODES
+    input_node = pe.Node(IdentityInterface(
+        fields=['masks', 
+        'output_folder', 
+        'standard2example_func', 
+        'template_file']), name='inputspec')
+
+    output_node = pe.Node(IdentityInterface(
+        fields=['output_files']), name='outputspec')
+
+    input_node.inputs.masks = glob.glob(op.join(mask_folder, '*.nii.gz'))
+    input_node.inputs.output_folder = output_folder # op.join(workflow_output_directory, 'mapper_stat')
+    input_node.inputs.standard2example_func = standard2example_func
+    input_node.inputs.template_file = example_func # op.join(workflow_output_directory, 'reg', 'example_func.nii.gz')
+
+    datasink = pe.Node(nio.DataSink(), name='sinker')
+    datasink.inputs.parameterization = False
+
+    thresh_node = pe.MapNode(fsl.Threshold(thresh = 0.001, args = '-bin'), name='thresh', iterfield = ['in_file'])
+    vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc', padding_size = 0, datatype = 'int'), name='vol_trans', iterfield = ['in_file'])
+
+    ### WORKFLOW
+    import_MNI_masks_workflow = pe.Workflow(name='import_MNI_masks')
+
+    import_MNI_masks_workflow.connect(input_node, 'masks', thresh_node, 'in_file')
+
+    import_MNI_masks_workflow.connect(thresh_node, 'out_file', vol_trans_node, 'in_file')
+
+    import_MNI_masks_workflow.connect(input_node, 'standard2example_func', vol_trans_node, 'in_matrix_file')
+    import_MNI_masks_workflow.connect(input_node, 'template_file', vol_trans_node, 'reference')
+    import_MNI_masks_workflow.connect(input_node, 'output_folder', datasink, 'base_directory')
+    
+    import_MNI_masks_workflow.connect(vol_trans_node, 'out_file', output_node, 'output_files')
+    import_MNI_masks_workflow.connect(vol_trans_node, 'out_file', datasink, 'roi.MNI')
+
+    import_MNI_masks_workflow.run('MultiProc', plugin_args={'n_procs': 24})
+
+    out_files = glob.glob(op.join(output_folder, 'roi', 'MNI', '*.nii.gz'))
+
+    return out_files
+

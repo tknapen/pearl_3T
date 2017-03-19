@@ -21,7 +21,7 @@ from IPython import embed as shell
 # python across.py block
 
 from pearl.surf.surf_draw import all2surf
-from pearl.utils.roi import fit_FIR_roi
+from pearl.rl.roi import fit_FIR_roi_block
 from pearl.utils.utils import natural_sort
 
 # the subject id and experiment vars are commandline arguments to this script.
@@ -43,21 +43,22 @@ try:
 except:
     pass
 
-fit_FIR_roi(experiment = 'rl',
-                h5_file = op.join(opd, 'h5', 'roi.h5'),
-                in_files = in_files,
-                vol_regressor_list = volreg_files, 
-                behavior_file_list = behavior_files, 
-                mapper_file = 'zstat2_flirt',
-                mask_threshold = analysis_info['stat_mask_threshold'],
-                mask_direction = 'pos',
-                fmri_data_type = 'psc',
-                fir_frequency = analysis_info['deconvolution_frequency'],
-                fir_interval = analysis_info['deconvolution_interval'],
-                roi_list = ['fusifor','temporal_middle', 'calcarine'],
-                output_pdf_dir = op.join(opd, 'figs', phase),
-                output_tsv_dir = op.join(opd, 'roi', phase)
-                )
+if phase == 'block':
+    fit_FIR_roi_block(experiment = 'rl',
+                    h5_file = op.join(opd, 'h5', 'roi.h5'),
+                    in_files = in_files,
+                    vol_regressor_list = volreg_files, 
+                    behavior_file_list = behavior_files, 
+                    mapper_file = 'zstat2_flirt',
+                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_direction = 'pos',
+                    fmri_data_type = 'psc',
+                    fir_frequency = analysis_info['deconvolution_frequency'],
+                    fir_interval = analysis_info['deconvolution_interval'],
+                    roi_list = ['fusifor','temporal_middle', 'calcarine'],
+                    output_pdf_dir = op.join(opd, 'figs', phase),
+                    output_tsv_dir = op.join(opd, 'roi', phase)
+                    )
 
 
 # taking mapper stats to surface

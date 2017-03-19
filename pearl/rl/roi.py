@@ -7,7 +7,7 @@ from __future__ import division, print_function
 #     return 
 
 
-def fit_FIR_roi(experiment,
+def fit_FIR_roi_block(experiment,
                 h5_file,
                 in_files,
                 vol_regressor_list, 

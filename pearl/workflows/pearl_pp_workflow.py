@@ -22,7 +22,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
 
     from .motion_correction import create_motion_correction_workflow
     from ..surf.masks import avg_label_to_subject_label
-    from ..utils.utils import convert_mapper_data_to_RL, mask_nii_2_hdf5
+    from ..utils.utils import convert_mapper_data_to_session, mask_nii_2_hdf5
 
     ########################################################################################
     # nodes
@@ -68,11 +68,16 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
                                     function=percent_signal_change),
                       name='percent_signal_change', iterfield=['in_file'])
 
-    # node for conversion of mapper data to RL
-    mapper_convert = pe.Node(Function(input_names=['workflow_output_directory', 'sub_id', 'hires_2_rl_reg', 'example_func'],
+    # node for conversion of mapper data to session
+    mapper_convert = pe.Node(Function(input_names=['workflow_output_directory', 'sub_id', 'hires_2_session_reg', 'example_func', 'str_repl'],
                                     output_names=['out_files'],
                                     function=convert_mapper_data_to_session),
                       name='mapper_convert')
+    if analysis_info['experiment'] == 'rl':
+        mapper_convert.inputs.str_repl = ['/rl/', '/map/']
+    elif analysis_info['experiment'] == 'ssrt':
+        mapper_convert.inputs.str_repl = ['/ssrt/', '/map/']
+    
 
     hdf5_psc_masker = pe.Node(Function(input_names = ['in_files', 'mask_files', 'hdf5_file', 'folder_alias'], output_names = ['hdf5_file'],
                                     function = mask_nii_2_hdf5), 
@@ -194,7 +199,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
             # we assume the mapper's already run
             pearl_pp_workflow.connect(input_node, 'output_directory', mapper_convert, 'workflow_output_directory')
             pearl_pp_workflow.connect(input_node, 'sub_id', mapper_convert, 'sub_id')
-            pearl_pp_workflow.connect(reg, 'outputspec.T1_EPI_matrix_file', mapper_convert, 'hires_2_rl_reg')
+            pearl_pp_workflow.connect(reg, 'outputspec.T1_EPI_matrix_file', mapper_convert, 'hires_2_session_reg')
             pearl_pp_workflow.connect(reg, 'outputspec.EPI_space_file', mapper_convert, 'example_func')
             pearl_pp_workflow.connect(mapper_convert, 'out_files', datasink, 'mapper_stats')
 

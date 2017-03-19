@@ -158,7 +158,7 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
 
     return all_roi_data_np
 
-def convert_mapper_data_to_session(workflow_output_directory, sub_id, hires_2_rl_reg, example_func, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
+def convert_mapper_data_to_session(workflow_output_directory, sub_id, hires_2_session_reg, example_func, str_repl = ['/rl/', '/map/'], stat_re = 'tf.feat/stats/*stat'):
     import os.path as op
     import glob
     import nipype.pipeline as pe
@@ -177,7 +177,7 @@ def convert_mapper_data_to_session(workflow_output_directory, sub_id, hires_2_rl
         fields=['input_files', 
         'output_folder', 
         'mapper_2_hires_reg', 
-        'hires_2_rl_reg',
+        'hires_2_session_reg',
         'template_file']), name='inputspec')
 
     output_node = pe.Node(IdentityInterface(
@@ -186,7 +186,7 @@ def convert_mapper_data_to_session(workflow_output_directory, sub_id, hires_2_rl
     input_node.inputs.input_files = input_files
     input_node.inputs.output_folder = workflow_output_directory # op.join(workflow_output_directory, 'mapper_stat')
     input_node.inputs.mapper_2_hires_reg = op.join(input_folder, 'reg', 'example_func2highres.mat')
-    input_node.inputs.hires_2_rl_reg = hires_2_rl_reg # op.join(workflow_output_directory, 'reg', 'highres2example_func.mat')
+    input_node.inputs.hires_2_session_reg = hires_2_session_reg # op.join(workflow_output_directory, 'reg', 'highres2example_func.mat')
     input_node.inputs.template_file = example_func # op.join(workflow_output_directory, 'reg', 'example_func.nii.gz')
 
     concat_N = pe.Node(fsl.ConvertXFM(concat_xfm = True), name = 'concat_Mapper')

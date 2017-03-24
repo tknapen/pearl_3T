@@ -148,7 +148,7 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
             data_arrays.append([])
             for dan in selected_data_array_names:
                 data_arrays[-1].append(eval('roi_node.__getattr__("' + dan + '").read()'))
-            
+            print('Taken data corresponding to ' + str(selected_data_array_names) + ' from group /' + folder_alias + '/' + roi_name)
             data_arrays[-1] = np.hstack(data_arrays[-1]) # stack across timepoints or other values per voxel
             if len(data_arrays[-1].shape) == 1:
                 data_arrays[-1] = data_arrays[-1][:,np.newaxis]

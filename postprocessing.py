@@ -16,12 +16,13 @@ from IPython import embed as shell
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s rl block &
+#     python postprocessing.py sub-$s ssrt Stop &
 # done
-# python across.py block
+# python across.py ssrt Stop
 
 from pearl.surf.surf_draw import all2surf
-from pearl.rl.roi import fit_FIR_roi_block
+import pearl.rl as rl
+import pearl.ssrt as ssrt
 from pearl.utils.utils import natural_sort
 
 # the subject id and experiment vars are commandline arguments to this script.
@@ -43,8 +44,8 @@ try:
 except:
     pass
 
-if phase == 'block':
-    fit_FIR_roi_block(experiment = 'rl',
+if phase == 'test' and experiment == 'rl':
+    rl.roi.fit_FIR_roi_test(experiment = 'rl',
                     h5_file = op.join(opd, 'h5', 'roi.h5'),
                     in_files = in_files,
                     vol_regressor_list = volreg_files, 
@@ -55,11 +56,45 @@ if phase == 'block':
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],
                     fir_interval = analysis_info['deconvolution_interval'],
-                    roi_list = ['fusifor','temporal_middle', 'calcarine'],
+                    roi_list = analysis_info['rl_test_rois'],
+                    event_conditions = analysis_info['rl_test_event_conditions'],
                     output_pdf_dir = op.join(opd, 'figs', phase),
                     output_tsv_dir = op.join(opd, 'roi', phase)
                     )
 
+if phase == 'train' and experiment == 'rl':
+    rl.roi.fit_FIR_roi_train(experiment = 'rl',
+                    h5_file = op.join(opd, 'h5', 'roi.h5'),
+                    in_files = in_files,
+                    vol_regressor_list = volreg_files, 
+                    behavior_file_list = behavior_files, 
+                    mapper_file = 'zstat2_flirt',
+                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_direction = 'pos',
+                    fmri_data_type = 'psc',
+                    fir_frequency = analysis_info['deconvolution_frequency'],
+                    fir_interval = analysis_info['deconvolution_interval'],
+                    roi_list = analysis_info['rl_train_rois'],
+                    output_pdf_dir = op.join(opd, 'figs', phase),
+                    output_tsv_dir = op.join(opd, 'roi', phase)
+                    )
+
+if experiment == 'ssrt':
+    ssrt.roi.fit_FIR_roi(experiment = 'rl',
+                    h5_file = op.join(opd, 'h5', 'roi.h5'),
+                    in_files = in_files,
+                    vol_regressor_list = volreg_files, 
+                    behavior_file_list = behavior_files, 
+                    mapper_file = 'zstat2_flirt',
+                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_direction = 'pos',
+                    fmri_data_type = 'psc',
+                    fir_frequency = analysis_info['deconvolution_frequency'],
+                    fir_interval = analysis_info['deconvolution_interval'],
+                    roi_list = analysis_info['ssrt_rois'],
+                    output_pdf_dir = op.join(opd, 'figs', phase),
+                    output_tsv_dir = op.join(opd, 'roi', phase)
+                    )
 
 # taking mapper stats to surface
 

@@ -7,7 +7,7 @@ from __future__ import division, print_function
 #     return 
 
 
-def fit_FIR_roi_block(experiment,
+def fit_FIR_roi_train(experiment,
                 h5_file,
                 in_files,
                 vol_regressor_list, 
@@ -35,8 +35,8 @@ def fit_FIR_roi_block(experiment,
     from spynoza.nodes.utils import get_scaninfo
     from fir import FIRDeconvolution
     import tempfile
-    from .behavior import process_tsv
-    from .utils import roi_data_from_hdf
+    from .behavior import process_train_tsv
+    from ..utils.utils import roi_data_from_hdf
     from IPython import embed as shell
 
 
@@ -50,7 +50,7 @@ def fit_FIR_roi_block(experiment,
     ################################################################################## 
     # behavior data generalizes across ROIs of course
     ##################################################################################
-    all_event_df = process_tsv(behavior_file_list, run_durations)
+    all_event_df = process_train_tsv(behavior_file_list, run_durations)
 
     # first, just run a FIR on the image pairs
     stim_event_names = ['AB', 'CD', 'EF']
@@ -213,6 +213,148 @@ def fit_FIR_roi_block(experiment,
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
                             columns = fd.deconvolution_interval_timepoints, 
                             index = all_event_names)
-        np.savetxt(op.join(output_tsv_dir, roi + '_deco.tsv'), np.array(op_df), delimiter = '\t')
+        np.savetxt(op.join(output_tsv_dir, roi + '_deco_train.tsv'), np.array(op_df), delimiter = '\t')
+
+def fit_FIR_roi_test(experiment,
+                h5_file,
+                in_files,
+                vol_regressor_list, 
+                behavior_file_list, 
+                mapper_file = 'zstat2_flirt',
+                mask_threshold = 2.0,
+                mask_direction = 'pos',
+                fmri_data_type = 'psc',
+                fir_frequency = 4,
+                fir_interval = [-3.0,12.0],
+                roi_list = ['maxSTN25exc','SThR25max','SST_GO_preSMA','PvmPFCNoventri','PstriatumNoVentri'],
+                event_conditions = ['ww', 'wl.u', 'wl.l', 'll'],
+                TR = 2.0, 
+                output_pdf_dir = '', 
+                output_tsv_dir = ''):
+
+    import nibabel as nib
+    import numpy as np
+    import numpy.linalg as LA
+    import scipy as sp
+    import os
+    import os.path as op
+    import pandas as pd
+    import matplotlib.pyplot as pl
+    import seaborn as sn
+    from spynoza.nodes.utils import get_scaninfo
+    from fir import FIRDeconvolution
+    import tempfile
+    from .behavior import process_test_tsv
+    from ..utils.utils import roi_data_from_hdf
+    from IPython import embed as shell
+
+
+    run_durations = []
+    for ifn in in_files:
+        non_TR, dims, dyns, voxsize, affine = get_scaninfo(ifn)
+        run_durations.append(TR*dyns)
+
+    ################################################################################## 
+    # behavior data generalizes across ROIs of course
+    ##################################################################################
+    all_event_df = process_test_tsv(behavior_file_list, run_durations)
+
+    event_types_times = {evc: np.array(all_event_df[(all_event_df['Cond'] == evc)]['Time']) for evc in event_conditions}
+    event_types_durs = {evc: np.array(all_event_df[(all_event_df['Cond'] == evc)]['RT']) for evc in event_conditions}
+
+    all_event_names = event_conditions
+
+    ################################################################################## 
+    # whole-brain nuisance data generalizes across ROIs of course
+    ##################################################################################
+
+    if vol_regressor_list != []:
+        all_vol_regs = []
+        for x in range(len(vol_regressor_list)):
+            all_vol_regs.append(np.loadtxt(vol_regressor_list[x]))
+        all_vol_regs = np.vstack(all_vol_regs)
+
+    ################################################################################## 
+    # per-roi data
+    ##################################################################################
+
+    for roi in roi_list:
+        contrast_data = roi_data_from_hdf(data_types_wildcards = [mapper_file], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'stats')
+        time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
+
+        time_course_data = np.hstack(time_course_data)
+
+        if mask_threshold < 0:
+            mask_threshold = -mask_threshold
+            contrast_data = -contrast_data
+
+        over_mask_threshold = (contrast_data[:,0]>mask_threshold)
+        iceberg_tip = contrast_data[over_mask_threshold, 0]
+
+        projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
+        av_time_course = time_course_data[over_mask_threshold].mean(axis = 0)
+
+        # nuisance_regressors = np.nan_to_num(all_vol_reg)
+        fd = FIRDeconvolution(
+            signal = projected_time_course, 
+            events = [stim_event_list[0], stim_event_list[1], stim_event_list[2], fb_events], # dictate order
+            event_names = all_event_names, 
+            durations = {key:value for key, value in zip(all_event_names, event_types_durs)},
+            sample_frequency = 1.0/TR,
+            deconvolution_frequency = fir_frequency,
+            deconvolution_interval = fir_interval
+            )
+
+        fd.resampled_signal = np.nan_to_num(fd.resampled_signal)
+        # we then tell it to create its design matrix
+        fd.create_design_matrix()
+
+        # resample mocos and so forth
+        # all_nuisances = sp.signal.resample(nuisance_regressors, fd.resampled_signal_size, axis = -1)
+        # fd.add_continuous_regressors_to_design_matrix(all_nuisances)
+
+        # fit
+        fd.regress(method = 'lstsq')
+        # fd.ridge_regress(cv = 10)
+        fd.calculate_rsq()
+
+        # plot
+        sn.set_style('ticks')
+        f = pl.figure(figsize = (6,3))
+        s = f.add_subplot(111)
+        s.axhline(0, c='k', lw = 0.25)
+        s.axvline(0, c='k', lw = 0.25)
+        s.set_xlabel('Time [s]')
+        s.set_ylabel('BOLD % signal change')
+        for en in all_event_names:
+            this_tc = np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T))
+            pl.plot(fd.deconvolution_interval_timepoints, this_tc, label = en)
+        pl.legend()
+        sn.despine(offset = 10, ax = s)
+        pl.tight_layout()
+
+        pl.savefig(op.join(output_pdf_dir, roi + '_deco.pdf'))
+
+        f = pl.figure(figsize = (9,3))
+        s = f.add_subplot(111)
+        s.axhline(0, c='k', lw = 0.25)
+        s.set_title('data and predictions, rsq %1.3f'%fd.rsq)
+        s.set_xlabel('Time [s]')
+        s.set_ylabel('BOLD % signal change')
+        pl.plot(np.linspace(0,np.sum(run_durations), fd.resampled_signal.shape[1]), fd.resampled_signal.T, 'r', label = 'data')
+        pl.plot(np.linspace(0,np.sum(run_durations), fd.resampled_signal.shape[1]), fd.predict_from_design_matrix(fd.design_matrix).T, 'k', label = 'model')
+        pl.legend()
+        sn.despine(offset = 10, ax = s)
+        pl.tight_layout()
+        pl.savefig(op.join(output_pdf_dir, roi + '_deco_tc.pdf'))
+
+        op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
+                            columns = fd.deconvolution_interval_timepoints, 
+                            index = all_event_names)
+        np.savetxt(op.join(output_tsv_dir, roi + '_deco_test.tsv'), np.array(op_df), delimiter = '\t')
+
+
+
+
 
 

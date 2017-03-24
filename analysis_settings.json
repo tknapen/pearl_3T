@@ -16,4 +16,8 @@
 "deconvolution_frequency": 4,
 "stat_mask_threshold": 2.0, 
 "MNI_mask_folder": "/home/shared/2017/reward/pearl_3T/MNI"
+"rl_test_event_conditions": ["ww", "wl.u", "wl.l", "ll"],
+"rl_test_rois": ["maxSTN25exc","SThR25max","SST_GO_preSMA","PvmPFCNoventri","PstriatumNoVentri"],
+"rl_train_rois": ["fusifor","temporal_middle", "calcarine"],
+"ssrt_rois": ["maxSTN25exc","SThR25max","SST_GO_preSMA","SST_GO_rIFG", "Caudate", "PvmPFCNoventri"],
 }

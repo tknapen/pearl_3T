@@ -1,5 +1,6 @@
 import os
 import json
+import glob
 
 if 'aeneas' in ''.join(os.uname()[1].split('.')):
     raw_disk = '/home/raw_data/'    
@@ -43,8 +44,10 @@ except:
 # the selection and averaging across files in a given condition
 analysis_info.update({'experiment': experiment})
 
+# find the appropriate json file for this experiment:
+my_acq_json_file = [x for x in glob.glob(os.path.join(raw_data_dir, 'task-*.json')) if experiment in x.lower()][0]
 # load the sequence parameters from json file
-with open(os.path.join(raw_data_dir, 'pearl_3T_scan_parameters.json')) as f:
+with open(my_acq_json_file) as f:
     json_s = f.read()
     acquisition_parameters = json.loads(json_s)
 

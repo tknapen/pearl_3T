@@ -44,7 +44,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
     input_node.inputs.masks = glob.glob(op.join(analysis_info['MNI_mask_folder'], '*.nii.gz'))
 
     # i/o node
-    datasource_templates = dict(func='{sub_id}/func/*{exp_shorthand}*_bold.nii.gz', behavior='{sub_id}/func/*{exp_shorthand}*_bold.tsv')
+    datasource_templates = dict(func='{sub_id}/func/*{exp_shorthand}*_bold.nii.gz', behavior='{sub_id}/func/*{exp_shorthand}*_events.tsv')
     datasource = pe.Node(SelectFiles(datasource_templates, sort_filelist = True, raise_on_empty = False), 
         name = 'datasource')
 
@@ -75,8 +75,8 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
                       name='mapper_convert')
     if analysis_info['experiment'] == 'rl':
         mapper_convert.inputs.str_repl = ['/rl/', '/map/']
-    elif analysis_info['experiment'] == 'ssrt':
-        mapper_convert.inputs.str_repl = ['/ssrt/', '/map/']
+    elif analysis_info['experiment'] == 'stop':
+        mapper_convert.inputs.str_repl = ['/stop/', '/map/']
     
 
     hdf5_psc_masker = pe.Node(Function(input_names = ['in_files', 'mask_files', 'hdf5_file', 'folder_alias'], output_names = ['hdf5_file'],
@@ -91,7 +91,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
     hdf5_stats_masker.inputs.folder_alias = 'stats'
 
     vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc', padding_size = 0), name='vol_trans', iterfield = ['in_file'])
-    thresh_node = pe.MapNode(fsl.Threshold(thresh = 0.001, args = '-bin', output_datatype = 'int'), name='thresh', iterfield = ['in_file'])
+    thresh_node = pe.MapNode(fsl.Threshold(thresh = analysis_info['MNI_mask_threshold'], args = '-bin', output_datatype = 'int'), name='thresh', iterfield = ['in_file'])
 
     merge_masks = pe.Node(Merge(len(analysis_info['label_folders']) + 2), name='merge_masks')
 
@@ -154,6 +154,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
 
         pearl_pp_workflow.connect(vol_trans_node, 'out_file', thresh_node, 'in_file' )
         pearl_pp_workflow.connect(thresh_node, 'out_file', datasink, 'masks.MNI')
+        pearl_pp_workflow.connect(vol_trans_node, 'out_file', datasink, 'masks.MNI_nt')
 
     ########################################################################################
     # masking stuff if doing mri analysis
@@ -195,7 +196,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
             pearl_pp_workflow.connect(dilate_list[-1], 'out_file', datasink, 'masks.'+opd)
 
         # import stats for mapper GLM across sessions
-        if analysis_info['experiment'] in ['rl', 'ssrt']:
+        if analysis_info['experiment'] in ['rl', 'stop']:
             # we assume the mapper's already run
             pearl_pp_workflow.connect(input_node, 'output_directory', mapper_convert, 'workflow_output_directory')
             pearl_pp_workflow.connect(input_node, 'sub_id', mapper_convert, 'sub_id')
@@ -209,7 +210,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
             for i in range(len(analysis_info['label_folders'])+1):
                 pearl_pp_workflow.connect(dilate_list[i], 'out_file', merge_masks, 'in'+str(i+1))
             # also add rois from MNI for hdf5 transplant
-            pearl_pp_workflow.connect(vol_trans_node, 'out_file', merge_masks, 'in'+str(i+2))
+            pearl_pp_workflow.connect(thresh_node, 'out_file', merge_masks, 'in'+str(i+2))
             pearl_pp_workflow.connect(merge_masks, 'out', hdf5_psc_masker, 'mask_files')
 
             # the hdf5_file is created by the psc node, and then passed from masker to masker on into the datasink.

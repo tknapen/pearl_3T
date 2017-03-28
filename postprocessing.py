@@ -13,16 +13,17 @@ from IPython import embed as shell
 #
 #   run as in:
 #
+# export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s ssrt Stop &
+#     python postprocessing.py sub-$s stop Stop &
 # done
-# python across.py ssrt Stop
+# python across.py stop Stop
 
 from pearl.surf.surf_draw import all2surf
 import pearl.rl as rl
-import pearl.ssrt as ssrt
+import pearl.stop as stop
 from pearl.utils.utils import natural_sort
 
 # the subject id and experiment vars are commandline arguments to this script.
@@ -79,8 +80,8 @@ if phase == 'train' and experiment == 'rl':
                     output_tsv_dir = op.join(opd, 'roi', phase)
                     )
 
-if experiment == 'ssrt':
-    ssrt.roi.fit_FIR_roi(experiment = 'rl',
+if experiment == 'stop':
+    stop.roi.fit_FIR_roi(experiment = 'stop',
                     h5_file = op.join(opd, 'h5', 'roi.h5'),
                     in_files = in_files,
                     vol_regressor_list = volreg_files, 
@@ -91,7 +92,7 @@ if experiment == 'ssrt':
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],
                     fir_interval = analysis_info['deconvolution_interval'],
-                    roi_list = analysis_info['ssrt_rois'],
+                    roi_list = analysis_info['stop_rois'],
                     output_pdf_dir = op.join(opd, 'figs', phase),
                     output_tsv_dir = op.join(opd, 'roi', phase)
                     )

@@ -51,9 +51,8 @@ def fit_FIR_roi(experiment,
 
     # first, just run a FIR on the image pairs
     stim_event_names = ['correct', 'succesful_stop', 'Failed_stop']
-    stim_event_list, stim_duration_list, stim_Q_chosen_list, stim_Q_notchosen_list, stim_Q_diff_list = [], [], [], [], []
     for en in stim_event_names:
-        stim_event_list.append(np.array(all_event_df['Time'])[np.array(all_event_df['Response'] == en)])
+        stim_event_list.append(np.array(all_event_df['onset'])[np.array(all_event_df['Response'] == en)])
 
     all_event_names = stim_event_names
 

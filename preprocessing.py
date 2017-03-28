@@ -14,11 +14,12 @@ import nipype.pipeline.engine as pe
 #
 #   run as in:
 #
+# export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python preprocessing.py sub-$s map &
-#     python preprocessing.py sub-$s rl 
+#     python preprocessing.py sub-$s stop &
+#     # python preprocessing.py sub-$s rl ;
 # done
 
 import nipype.interfaces.utility as util
@@ -68,7 +69,7 @@ if experiment == 'rl':
     pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'RL'
 elif experiment == 'map':
     pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'ppaffalo'
-elif experiment == 'ssrt':
+elif experiment == 'stop':
     pearl_pp_workflow.inputs.inputspec.exp_shorthand = 'Stopsignal'
 
 # standard output variables

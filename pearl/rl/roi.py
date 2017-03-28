@@ -279,24 +279,23 @@ def fit_FIR_roi_test(experiment,
     ##################################################################################
 
     for roi in roi_list:
-        contrast_data = roi_data_from_hdf(data_types_wildcards = [mapper_file], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'stats')
         time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
 
         time_course_data = np.hstack(time_course_data)
 
-        if mask_threshold < 0:
-            mask_threshold = -mask_threshold
-            contrast_data = -contrast_data
+        # if mask_threshold < 0:
+        #     mask_threshold = -mask_threshold
+        #     contrast_data = -contrast_data
 
-        over_mask_threshold = (contrast_data[:,0]>mask_threshold)
-        iceberg_tip = contrast_data[over_mask_threshold, 0]
+        # over_mask_threshold = (contrast_data[:,0]>mask_threshold)
+        # iceberg_tip = contrast_data[over_mask_threshold, 0]
 
-        projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
-        av_time_course = time_course_data[over_mask_threshold].mean(axis = 0)
+        # projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
+        av_time_course = time_course_data.mean(axis = 0)
 
         # nuisance_regressors = np.nan_to_num(all_vol_reg)
         fd = FIRDeconvolution(
-            signal = projected_time_course, 
+            signal = av_time_course, 
             events = [stim_event_list[0], stim_event_list[1], stim_event_list[2], fb_events], # dictate order
             event_names = all_event_names, 
             durations = {key:value for key, value in zip(all_event_names, event_types_durs)},

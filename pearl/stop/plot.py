@@ -65,20 +65,28 @@ def plot_deco_results(all_deco_files, subj_data, roi_name, interval = [-3,15], o
     #
     ##############################################################################################################
     sig = -np.log10(0.05)
+    # shell()
 
-    X = np.vstack([np.ones(len(all_deco_files)), np.array(subj_data['Beta']), np.array(subj_data['alphaL']), np.array(subj_data['alphaG'])]).T
+    # X = np.vstack([np.ones(len(all_deco_files)), np.array(subj_data['Beta'], dtype = float), np.array(subj_data['alphaL'], dtype = float), np.array(subj_data['alphaG'], dtype = float)]).T
+    beta = np.array(subj_data['Beta'], dtype = float)
+    beta = (beta - beta.mean()) / beta.std()
 
-    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], 4))
-    tcs = np.zeros((len(all_event_names),all_data.shape[-1], 4))
+    ssrt = np.array(subj_data['SSRT'], dtype = float)
+    ssrt = (ssrt - ssrt.mean()) / ssrt.std()
+
+    X = np.vstack([np.ones(len(all_deco_files)), beta, ssrt]).T
+
+    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], 3))
+    tcs = np.zeros((len(all_event_names),all_data.shape[-1], 3))
     for i, et in enumerate(all_event_names):
         for x in range(all_data.shape[-1]):
             model = sm.OLS(np.squeeze(all_data[:,i,x]),X)
             results = model.fit()
-            p_T_vals[i,x,:3] = -np.log10(results.pvalues[1:])
-            p_T_vals[i,x,3] = -np.log10(results.f_pvalue)
+            p_T_vals[i,x,:2] = -np.log10(results.pvalues[1:])
+            p_T_vals[i,x,2] = -np.log10(results.f_pvalue)
             tcs[i,x] = results.params
 
-    for i, c in enumerate(['Beta', 'alpha loss', 'alpha gain']):
+    for i, c in enumerate(['Beta', 'SSRT']):
         s = f.add_subplot(4,1,2+i)
         s.set_title(roi_name + ' corrs %s'%c)
         s.axhline(0, c='k', lw = 0.25)

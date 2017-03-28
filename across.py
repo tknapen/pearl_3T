@@ -25,7 +25,7 @@ from IPython import embed as shell
 from pearl.surf.surf_draw import av_surf_across_sjs
 from pearl.utils.utils import natural_sort
 import pearl.rl as rl
-import pearl.ssrt as ssrt
+import pearl.stop as stop
 
 # the subject id and experiment vars are commandline arguments to this script.
 sub_id = 'all'
@@ -40,20 +40,31 @@ try:
 except:
     pass
 
-sjs_info = pd.read_csv(os.path.join(os.path.split(preprocessed_data_dir)[0], 'Pearl_subjectID.tsv'), delimiter = '\t')
-new_good_names = np.array(sjs_info['new_names'][sjs_info['good_bad']=='good'])
+# shell()
 
-if phase == 'block' and experiment == 'rl':
-	for roi in ['fusifor' , 'temporal_middle']: # , 'temporal_middle'
+sjs_info = pd.read_csv(os.path.join(raw_data_dir, 'participants.tsv'), delimiter = '\t')
+if experiment in ['rl', 'stop']:
+	new_good_names = np.array(sjs_info['participant_id'][sjs_info['note']=='ok'])
+	good_sjs_info = sjs_info[sjs_info['note']=='ok']
+
+
+if phase == 'train' and experiment == 'rl':
+	for roi in analysis_info['rl_train_rois']: # , 'temporal_middle'
 	    all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco.tsv') for ngn in new_good_names]
 	    all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-	    rl.plot.plot_deco_results(all_deco_files, analysis_info['deconvolution_interval'], output_filename = op.join(opd, roi + '_deco.pdf'))
-if experiment == 'ssrt':
-	good_sjs_info = sjs_info[sjs_info['good_bad']=='good']
-	for roi in ['SThR','ventralstriatum','preSMA','IFGR']: # , 'temporal_middle'
+	    rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, analysis_info['deconvolution_interval'], output_filename = op.join(opd, roi + '_deco.pdf'))
+
+if phase == 'test' and experiment == 'rl':
+	for roi in analysis_info['rl_test_rois']: # , 'temporal_middle'
 	    all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco.tsv') for ngn in new_good_names]
 	    all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-	    ssrt.plot.plot_deco_results(all_deco_files, good_sjs_info, roi, analysis_info['deconvolution_interval'], output_filename = op.join(opd, roi + '_deco.pdf'))
+	    rl.plot.plot_deco_results_test(all_deco_files, good_sjs_info, analysis_info['deconvolution_interval'], output_filename = op.join(opd, roi + '_deco.pdf'))
+
+if experiment == 'stop':
+	for roi in analysis_info['stop_rois']: # , 'temporal_middle'
+	    all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco.tsv') for ngn in new_good_names]
+	    all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
+	    stop.plot.plot_deco_results(all_deco_files, good_sjs_info, roi, analysis_info['deconvolution_interval'], output_filename = op.join(opd, roi + '_deco.pdf'))
 
 pl.show()
 

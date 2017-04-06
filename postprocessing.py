@@ -13,12 +13,12 @@ from IPython import embed as shell
 #
 #   run as in:
 #
-# export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {001..049}
-# do
-#     echo sub-$s
-#     python postprocessing.py sub-$s stop Stop &
-# done
+export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
+for s in {001..049}
+do
+    echo sub-$s
+    python postprocessing.py sub-$s rl test &
+done
 # python across.py stop Stop
 
 from pearl.surf.surf_draw import all2surf
@@ -98,7 +98,7 @@ if experiment == 'stop':
                     )
 
 # taking mapper stats to surface
-
+# pl.show()
 # all_deriv_nii_files = [op.join(opd, 'mapper_stat', 'zstat%i_flirt.nii.gz'%i) for i in range(1,5)]
 
 # all2surf(

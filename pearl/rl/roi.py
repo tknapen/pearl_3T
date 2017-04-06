@@ -22,7 +22,8 @@ def fit_FIR_roi_train(experiment,
                 TR = 2.0, 
                 output_pdf_dir = '', 
                 output_tsv_dir = ''):
-
+    """ fit_FIR_roi_train
+    """
     import nibabel as nib
     import numpy as np
     import numpy.linalg as LA
@@ -248,7 +249,6 @@ def fit_FIR_roi_test(experiment,
     from ..utils.utils import roi_data_from_hdf
     from IPython import embed as shell
 
-
     run_durations = []
     for ifn in in_files:
         non_TR, dims, dyns, voxsize, affine = get_scaninfo(ifn)
@@ -259,10 +259,11 @@ def fit_FIR_roi_test(experiment,
     ##################################################################################
     all_event_df = process_test_tsv(behavior_file_list, run_durations)
 
-    event_types_times = {evc: np.array(all_event_df[(all_event_df['Cond'] == evc)]['Time']) for evc in event_conditions}
-    event_types_durs = {evc: np.array(all_event_df[(all_event_df['Cond'] == evc)]['RT']) for evc in event_conditions}
-
-    all_event_names = event_conditions
+    event_types_times, event_types_durs = {}, {}
+    for evc in event_conditions:
+        event_types_times.update({evc.replace('.','_'): np.array(all_event_df[(all_event_df['Cond'] == evc)]['onset'])})
+        event_types_durs.update({evc.replace('.','_'): np.array(all_event_df[(all_event_df['Cond'] == evc)]['RT'])})
+    new_event_conditions = [evc.replace('.','_') for evc in event_conditions]
 
     ################################################################################## 
     # whole-brain nuisance data generalizes across ROIs of course
@@ -283,22 +284,17 @@ def fit_FIR_roi_test(experiment,
 
         time_course_data = np.hstack(time_course_data)
 
-        # if mask_threshold < 0:
-        #     mask_threshold = -mask_threshold
-        #     contrast_data = -contrast_data
-
-        # over_mask_threshold = (contrast_data[:,0]>mask_threshold)
-        # iceberg_tip = contrast_data[over_mask_threshold, 0]
-
-        # projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
         av_time_course = time_course_data.mean(axis = 0)
 
-        # nuisance_regressors = np.nan_to_num(all_vol_reg)
+        nuisance_regressors = np.nan_to_num(all_vol_regs)
+
+        # shell()
+
         fd = FIRDeconvolution(
             signal = av_time_course, 
-            events = [stim_event_list[0], stim_event_list[1], stim_event_list[2], fb_events], # dictate order
-            event_names = all_event_names, 
-            durations = {key:value for key, value in zip(all_event_names, event_types_durs)},
+            events = [event_types_times[evt] for evt in new_event_conditions], # dictate order
+            event_names = new_event_conditions, 
+            durations = event_types_durs, #{evt: evd[evt] for evt, evd in zip(event_conditions, event_types_durs)},
             sample_frequency = 1.0/TR,
             deconvolution_frequency = fir_frequency,
             deconvolution_interval = fir_interval
@@ -309,8 +305,8 @@ def fit_FIR_roi_test(experiment,
         fd.create_design_matrix()
 
         # resample mocos and so forth
-        # all_nuisances = sp.signal.resample(nuisance_regressors, fd.resampled_signal_size, axis = -1)
-        # fd.add_continuous_regressors_to_design_matrix(all_nuisances)
+        all_nuisances = sp.signal.resample(nuisance_regressors, fd.resampled_signal_size, axis = 0)
+        fd.add_continuous_regressors_to_design_matrix(all_nuisances.T)
 
         # fit
         fd.regress(method = 'lstsq')
@@ -321,11 +317,12 @@ def fit_FIR_roi_test(experiment,
         sn.set_style('ticks')
         f = pl.figure(figsize = (6,3))
         s = f.add_subplot(111)
+        s.set_title(roi)
         s.axhline(0, c='k', lw = 0.25)
         s.axvline(0, c='k', lw = 0.25)
         s.set_xlabel('Time [s]')
         s.set_ylabel('BOLD % signal change')
-        for en in all_event_names:
+        for en in new_event_conditions:
             this_tc = np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T))
             pl.plot(fd.deconvolution_interval_timepoints, this_tc, label = en)
         pl.legend()
@@ -336,8 +333,9 @@ def fit_FIR_roi_test(experiment,
 
         f = pl.figure(figsize = (9,3))
         s = f.add_subplot(111)
+        s.set_title(roi)
         s.axhline(0, c='k', lw = 0.25)
-        s.set_title('data and predictions, rsq %1.3f'%fd.rsq)
+        s.set_title('data and predictions, rsq %1.3f, roi: %s'%(fd.rsq, roi))
         s.set_xlabel('Time [s]')
         s.set_ylabel('BOLD % signal change')
         pl.plot(np.linspace(0,np.sum(run_durations), fd.resampled_signal.shape[1]), fd.resampled_signal.T, 'r', label = 'data')
@@ -347,9 +345,9 @@ def fit_FIR_roi_test(experiment,
         pl.tight_layout()
         pl.savefig(op.join(output_pdf_dir, roi + '_deco_tc.pdf'))
 
-        op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
+        op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in new_event_conditions]), 
                             columns = fd.deconvolution_interval_timepoints, 
-                            index = all_event_names)
+                            index = new_event_conditions)
         np.savetxt(op.join(output_tsv_dir, roi + '_deco_test.tsv'), np.array(op_df), delimiter = '\t')
 
 

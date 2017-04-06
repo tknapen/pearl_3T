@@ -25,6 +25,6 @@ def process_test_tsv(tsv_files, run_durations, event_conditions = ['ww', 'wl.u',
         trial_times[i]['onset'] += run_onset_offsets[i]
 
     tt_df = pd.concat(trial_times)
-    tt_df = [tt_df['Response'] != 'omission']
+    tt_df = tt_df[tt_df['Response'] != 'omission']
 
     return tt_df

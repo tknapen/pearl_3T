@@ -120,6 +120,8 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     covariate_event_indices = [event_conditions.index(ecc) for ecc in event_conditions_for_covariates]
     cond_diffs = ['ll-ww', 'll-wl_u', 'ww-wl_u']
 
+    shell()
+
     roi_data_diffs = np.squeeze(np.array([  all_data[:,new_event_conditions=='ll'] - all_data[:,new_event_conditions=='ww'], 
                             all_data[:,new_event_conditions=='ll'] - all_data[:,new_event_conditions=='wl_u'], 
                             all_data[:,new_event_conditions=='ww'] - all_data[:,new_event_conditions=='wl_u'] ]
@@ -178,3 +180,188 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     # pl.show()
 
     pl.savefig(output_filename)
+
+def plot_deco_results_test_MR():
+
+
+
+    rd_diff = np.squeeze(roi_data[:,:,conditions == 'll']) - np.squeeze(roi_data[:,:,conditions == 'ww'])
+    betas, res, rank, sem = np.linalg.lstsq(X, rd_diff)
+    bbruns = np.ones((nr_bs, X.shape[-1], rd_diff.shape[-1]))
+    for bbr in range(nr_bs):
+        inds = np.random.randint(0, X.shape[0], X.shape[0])
+        bbs, _res, _rank, _sem = np.linalg.lstsq(X[inds], rd_diff[inds])
+        bbruns[bbr] = bbs
+    bs_sd = bbruns.std(axis = 0)     
+
+    sig = -np.log10(0.05/8)
+    p_T_vals = np.zeros((2, rd_diff.shape[-1], 4))
+    for x in range(rd_diff.shape[-1]):
+        model = sm.OLS(np.squeeze(rd_diff[:,x]),X)
+        results = model.fit()
+        p_T_vals[0,x,:3] = -np.log10(results.pvalues)
+        p_T_vals[1,x,:3] = results.tvalues
+
+        p_T_vals[0,x,3] = -np.log10(results.f_pvalue)
+        p_T_vals[1,x,3] = results.fvalue
+
+
+
+    f = pl.figure(figsize = (8,8))
+    f.suptitle('STN')
+
+    s = f.add_subplot(111)
+    # rd = np.squeeze(roi_data[:,:,conditions == 'll'])
+    # betas, res, rank, sem = np.linalg.lstsq(X, rd)
+
+    bbruns = np.ones((nr_bs, X.shape[-1], rd_diff.shape[-1]))
+    for bbr in range(nr_bs):
+        inds = np.random.randint(0, X.shape[0], X.shape[0])
+        bbs, _res, _rank, _sem = np.linalg.lstsq(X[inds], rd_diff[inds])
+        bbruns[bbr] = bbs
+    bs_sd = bbruns.std(axis = 0)        
+    for x in range(betas.shape[0]):
+        pl.plot(times, betas[x], colors[x], label = beta_names[x])
+        pl.fill_between(times, betas[x] - bs_sd[x], betas[x] + bs_sd[x], color = colors[x], alpha = 0.2)
+
+    # significance
+    sig = -np.log10(0.05)
+    p_T_vals = np.zeros((2, rd_diff.shape[-1], 4))
+    for x in range(rd_diff.shape[-1]):
+        model = sm.OLS(np.squeeze(rd_diff[:,x]),X)
+        results = model.fit()
+        p_T_vals[0,x,:3] = -np.log10(results.pvalues)
+        p_T_vals[1,x,:3] = results.tvalues
+
+        p_T_vals[0,x,3] = -np.log10(results.f_pvalue)
+        p_T_vals[1,x,3] = results.fvalue
+
+    # shell()
+    sig_periods = p_T_vals[0,:,[0,1]] > sig
+    for i in [0,1]:
+        time_sig = np.arange(times.shape[0])[sig_periods[i]]
+        pl.plot([times[time_sig[0]]-0.5, times[time_sig[-1]] + 0.5], [[-0.025, -0.025], [-0.035, -0.035]][i], color = ['red','green'][i], linewidth = 3.0, alpha = 0.8)
+
+
+    s.set_title('Lose-Lose')
+    s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    # s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    pl.legend()
+    s.set_ylabel('Beta values')
+    # s.set_xlabel('time [s]')
+    sn.despine(offset=10)
+    s.set_xlim(time_period)
+    s.set_xticks([0,5,10])
+    s.set_ylim([-0.04,0.06001])
+
+    # shell()
+
+    s = f.add_subplot(2,2,2)
+    rd = np.squeeze(roi_data[:,:,conditions == 'ww'])
+    betas, res, rank, sem = np.linalg.lstsq(X, rd)
+
+    bbruns = np.ones((nr_bs, X.shape[-1], rd.shape[-1]))
+    for bbr in range(nr_bs):
+        inds = np.random.randint(0, X.shape[0], X.shape[0])
+        bbs, _res, _rank, _sem = np.linalg.lstsq(X[inds], rd[inds])
+        bbruns[bbr] = bbs
+    bs_sd = bbruns.std(axis = 0)    
+    for x in range(betas.shape[0]):
+        pl.plot(times, betas[x], colors[x], label = beta_names[x])
+        pl.fill_between(times, betas[x] - bs_sd[x], betas[x] + bs_sd[x], color = colors[x], alpha = 0.2)
+
+    # # significance is never reached
+    # sig = -np.log10(0.05/8)
+    # p_T_vals = np.zeros((2, rd.shape[-1], 4))
+    # for x in range(rd.shape[-1]):
+    #     model = sm.OLS(np.squeeze(rd[:,x]),X)
+    #     results = model.fit()
+    #     p_T_vals[0,x,:3] = -np.log10(results.pvalues)
+    #     p_T_vals[1,x,:3] = results.tvalues
+
+    #     p_T_vals[0,x,3] = -np.log10(results.f_pvalue)
+    #     p_T_vals[1,x,3] = results.fvalue
+    # # shell()
+    # sig_periods_ww = p_T_vals[0,:,[0,1]] > sig
+    # for i in [0,1]:
+    #     time_sig = np.arange(times.shape[0])[sig_periods_ww[i]]
+    #     pl.plot([times[time_sig[0]]-0.5, times[time_sig[-1]] + 0.5], [[-0.025, -0.025], [-0.035, -0.035]][i], color = ['red','green'][i], linewidth = 3.0, alpha = 0.8)
+
+
+    s.set_title('Win-Win')
+    s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    # s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    pl.legend()
+    s.set_ylabel('Beta values')
+    s.set_xlabel('time [s]')
+    sn.despine(offset=10)
+    s.set_xlim(time_period)
+    s.set_xticks([0,5,10])
+    s.set_ylim([-0.04,0.06001])
+
+
+    # group split
+    evt = 'll'
+    s = f.add_subplot(2,2,3)
+
+    group_values = np.array([np.array(ssa.evts['SSRT'])[0] for ssa in self.ssas])
+    group_median = np.median(group_values)
+
+    group = group_values <= group_median
+
+
+    idx = conditions == evt
+    this_condition_data = (roi_data[group,:,idx],roi_data[-group,:,idx])
+
+    s.set_title('Lose-Lose - SSRT')
+    sn.tsplot(this_condition_data[0], time = times, condition = ['SSRT fast'], ci = 68, color = 'gray', ls = '--')
+    sn.tsplot(this_condition_data[1], time = times, condition = ['SSRT slow'], ci = 68, color = 'gray')
+
+    i = 0
+    time_sig = np.arange(times.shape[0])[sig_periods[i]]
+    pl.plot([times[time_sig[0]]-0.5, times[time_sig[-1]] + 0.5], [[-0.025, -0.025], [-0.035, -0.035]][i], color = ['red','green'][i], linewidth = 3.0, alpha = 0.8)
+
+    s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    # s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    s.set_xlabel('time [s]')
+    s.set_ylabel('Z-scored BOLD')
+    sn.despine(offset=10)
+    s.set_xlim(time_period)
+    s.set_xticks([0,5,10])
+    s.set_ylim([-0.05,0.09])
+
+
+    s = f.add_subplot(2,2,4)
+
+    group_values = np.array([np.array(ssa.evts['Beta'])[0] for ssa in self.ssas])
+    group_median = np.median(group_values)
+
+    group = group_values <= group_median
+
+
+    idx = conditions == evt
+    this_condition_data = (roi_data[group,:,idx],roi_data[-group,:,idx])
+
+    s.set_title('Lose-Lose - Beta')
+    sn.tsplot(this_condition_data[0], time = times, condition = ['Explore'], ci = 68, color = 'gray', ls = '--')
+    sn.tsplot(this_condition_data[1], time = times, condition = ['Exploit'], ci = 68, color = 'gray')
+
+    i = 1
+    time_sig = np.arange(times.shape[0])[sig_periods[i]]
+    pl.plot([times[time_sig[0]]-0.5, times[time_sig[-1]] + 0.5], [[-0.025, -0.025], [-0.025, -0.025]][i], color = ['red','green'][i], linewidth = 3.0, alpha = 0.8)
+
+    s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    # s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
+    s.set_xlabel('time [s]')
+    s.set_ylabel('Z-scored BOLD')
+    sn.despine(offset=10)
+    s.set_xlim(time_period)
+    s.set_xticks([0,5,10])
+    s.set_ylim([-0.05,0.09])
+
+
+
+
+    pl.tight_layout()
+
+

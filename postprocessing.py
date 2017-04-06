@@ -13,13 +13,13 @@ from IPython import embed as shell
 #
 #   run as in:
 #
-export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-for s in {001..049}
-do
-    echo sub-$s
-    python postprocessing.py sub-$s rl test &
-done
-# python across.py stop Stop
+# export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
+# for s in {001..049}
+# do
+#     echo sub-$s
+#     python postprocessing.py sub-$s stop Stop &
+# done
+# # python across.py stop Stop
 
 from pearl.surf.surf_draw import all2surf
 import pearl.rl as rl
@@ -36,7 +36,8 @@ execfile('pearl/parameters.py')
 
 behavior_files = natural_sort(glob.glob(op.join(opd, 'behavior', '*%s*.tsv'%phase)))
 in_files = natural_sort(glob.glob(op.join(opd, 'psc', '*%s*.nii.gz'%phase)))
-volreg_files = natural_sort(glob.glob(op.join(opd, 'mcf', 'parameter_info', '*%s*.1D'%phase)))
+volreg_files = natural_sort(glob.glob(op.join(opd, 'mcf', 'motion_pars', '*%s*.par'%phase)))
+
 
 try: 
     os.makedirs(op.join(opd, 'roi', phase))

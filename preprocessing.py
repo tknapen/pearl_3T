@@ -18,8 +18,8 @@ import nipype.pipeline.engine as pe
 # for s in {001..049}
 # do
 #     echo sub-$s
-    # python preprocessing.py sub-$s stop 
-    # python preprocessing.py sub-$s rl ;
+#     python preprocessing.py sub-$s stop &
+#     # python preprocessing.py sub-$s rl ;
 # done
 
 import nipype.interfaces.utility as util

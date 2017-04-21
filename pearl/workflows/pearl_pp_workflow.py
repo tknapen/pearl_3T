@@ -90,6 +90,11 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
                                     name = 'hdf5_stats_masker')
     hdf5_stats_masker.inputs.folder_alias = 'stats'
 
+    hdf5_roi_masker = pe.Node(Function(input_names = ['in_files', 'mask_files', 'hdf5_file', 'folder_alias'], output_names = ['hdf5_file'],
+                                    function = mask_nii_2_hdf5), 
+                                    name = 'hdf5_roi_masker')
+    hdf5_roi_masker.inputs.folder_alias = 'rois'
+
     vol_trans_node = pe.MapNode(interface=fsl.ApplyXfm(apply_xfm = True, interp = 'sinc', padding_size = 0), name='vol_trans', iterfield = ['in_file'])
     thresh_node = pe.MapNode(fsl.Threshold(thresh = analysis_info['MNI_mask_threshold'], args = '-bin', output_datatype = 'int'), name='thresh', iterfield = ['in_file'])
 
@@ -215,9 +220,16 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
 
             # the hdf5_file is created by the psc node, and then passed from masker to masker on into the datasink.
             pearl_pp_workflow.connect(hdf5_psc_masker, 'hdf5_file', hdf5_stats_masker, 'hdf5_file')
+
+            # then mask the mapper stats
             pearl_pp_workflow.connect(mapper_convert, 'out_files', hdf5_stats_masker, 'in_files')
             pearl_pp_workflow.connect(merge_masks, 'out', hdf5_stats_masker, 'mask_files')
-            pearl_pp_workflow.connect(hdf5_stats_masker, 'hdf5_file', datasink, 'h5')
+            pearl_pp_workflow.connect(hdf5_stats_masker, 'hdf5_file', hdf5_roi_masker, 'hdf5_file')
+
+            # and the probability maps of the different rois
+            pearl_pp_workflow.connect(vol_trans_node, 'out_file', hdf5_roi_masker, 'in_files')
+            pearl_pp_workflow.connect(merge_masks, 'out', hdf5_roi_masker, 'mask_files')
+            pearl_pp_workflow.connect(hdf5_roi_masker, 'hdf5_file', datasink, 'h5')
 
     ########################################################################################
     # wrapping up, sending data to datasink 

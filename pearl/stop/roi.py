@@ -13,7 +13,7 @@ def fit_FIR_roi(experiment,
                 vol_regressor_list, 
                 behavior_file_list, 
                 mapper_file = 'zstat2_flirt',
-                mask_threshold = 2.0,
+                mask_threshold = 0.0,
                 mask_direction = 'pos',
                 fmri_data_type = 'psc',
                 fir_frequency = 4,
@@ -70,9 +70,9 @@ def fit_FIR_roi(experiment,
     ################################################################################## 
     # per-roi data
     ##################################################################################
-    # shell()
     for roi in roi_list:
-        # contrast_data = roi_data_from_hdf(data_types_wildcards = [mapper_file], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'stats')
+        # shell()
+        contrast_data = roi_data_from_hdf(data_types_wildcards = [roi], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'rois')
         time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
 
         time_course_data = np.hstack(time_course_data)
@@ -81,15 +81,15 @@ def fit_FIR_roi(experiment,
         #     mask_threshold = -mask_threshold
         #     contrast_data = -contrast_data
 
-        # over_mask_threshold = (contrast_data[:,0]>mask_threshold)
-        # iceberg_tip = contrast_data[over_mask_threshold, 0]
+        over_mask_threshold = (contrast_data[:,0]>mask_threshold)
+        iceberg_tip = contrast_data[over_mask_threshold, 0]
 
-        # projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
+        projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
         av_time_course = time_course_data.mean(axis = 0)
 
         # nuisance_regressors = np.nan_to_num(all_vol_reg)
         fd = FIRDeconvolution(
-            signal = av_time_course, 
+            signal = projected_time_course, 
             events = [stim_event_list[0], stim_event_list[1], stim_event_list[2]], # dictate order
             event_names = stim_event_names, 
             # durations = {'AB':stim_duration_list[0], 'CD':stim_duration_list[1], 'EF':stim_duration_list[2], 'fb':fb_durations},

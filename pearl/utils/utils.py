@@ -115,7 +115,7 @@ def roi_data_from_hdf(data_types_wildcards, roi_name_wildcard, hdf5_file, folder
 
     try:
         folder_alias_run_group = h5file.get_node(where = '/', name = folder_alias, classname='Group')
-    except NoSuchNodeError:
+    except tables.NoSuchNodeError:
         # import actual data
         print('No group ' + folder_alias + ' in this file')
         # return None

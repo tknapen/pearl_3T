@@ -44,11 +44,11 @@ except:
 
 sjs_info = pd.read_csv(os.path.join(raw_data_dir, 'participants.tsv'), delimiter = '\t')
 if experiment == 'stop':
-    which_sjs = (sjs_info['note'] == 'ok')
+    which_sjs = (sjs_info['Incl_ex'] == 'ok')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs] 
 elif experiment == 'rl':
-    which_sjs = (sjs_info['note'] == 'ok') + (sjs_info['note'] == 'stop')
+    which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs]
 

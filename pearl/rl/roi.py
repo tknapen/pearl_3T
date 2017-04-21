@@ -280,10 +280,15 @@ def fit_FIR_roi_test(experiment,
     ##################################################################################
 
     for roi in roi_list:
+        contrast_data = roi_data_from_hdf(data_types_wildcards = [roi], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'rois')
         time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
 
         time_course_data = np.hstack(time_course_data)
 
+        over_mask_threshold = (contrast_data[:,0]>mask_threshold)
+        iceberg_tip = contrast_data[over_mask_threshold, 0]
+
+        projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
         av_time_course = time_course_data.mean(axis = 0)
 
         nuisance_regressors = np.nan_to_num(all_vol_regs)
@@ -291,7 +296,7 @@ def fit_FIR_roi_test(experiment,
         # shell()
 
         fd = FIRDeconvolution(
-            signal = av_time_course, 
+            signal = projected_time_course, 
             events = [event_types_times[evt] for evt in new_event_conditions], # dictate order
             event_names = new_event_conditions, 
             durations = event_types_durs, #{evt: evd[evt] for evt, evd in zip(event_conditions, event_types_durs)},

@@ -75,22 +75,26 @@ def plot_deco_results(all_deco_files, subj_data, roi_name, interval = [-3,15], o
     ssrt = np.array(subj_data['SSRT'], dtype = float)
     ssrt = (ssrt - ssrt.mean()) / ssrt.std()
 
+    # X = np.vstack([np.ones(len(all_deco_files)), ssrt]).T
+
+    # beta
     beta = np.array(subj_data['Beta'], dtype = float)
     beta = (beta - beta.mean()) / beta.std()
 
     X = np.vstack([np.ones(len(all_deco_files)), ssrt, beta]).T
 
-    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], 3))
-    tcs = np.zeros((len(all_event_names),all_data.shape[-1], 3))
+    # shell()
+    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]+1))
+    tcs = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]))
     for i, et in enumerate(all_event_names):
         for x in range(all_data.shape[-1]):
             model = sm.OLS(np.squeeze(all_data[:,i,x]),X)
             results = model.fit()
-            p_T_vals[i,x,:2] = -np.log10(results.pvalues[1:])
-            p_T_vals[i,x,2] = -np.log10(results.f_pvalue)
+            p_T_vals[i,x,:X.shape[1]] = -np.log10(results.pvalues)
+            p_T_vals[i,x,-1] = -np.log10(results.f_pvalue)
             tcs[i,x] = results.params
 
-    for i, c in enumerate(['SSRT', 'Beta']):
+    for i, c in enumerate(['SSRT', 'Beta']): # , 'Beta'
         s = f.add_subplot(3,1,2+i)
         s.set_title(roi_name + ' corrs %s'%c)
         s.axhline(0, c='k', lw = 0.25)
@@ -101,7 +105,7 @@ def plot_deco_results(all_deco_files, subj_data, roi_name, interval = [-3,15], o
             data = tcs[j,:,i+1]
             pl.plot(timepoints, data, color = colors[j], label = en)
 
-            sig_periods = p_T_vals[j,:,i] > sig
+            sig_periods = p_T_vals[j,:,i+1] > sig
 
             # take care of start and end of deconvolution interval.
             if sig_periods[0] == True:

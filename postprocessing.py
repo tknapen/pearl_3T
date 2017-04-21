@@ -88,7 +88,7 @@ if experiment == 'stop':
                     vol_regressor_list = volreg_files, 
                     behavior_file_list = behavior_files, 
                     mapper_file = 'zstat2_flirt',
-                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_threshold = analysis_info['stop_roi_mask_threshold'],
                     mask_direction = 'pos',
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],

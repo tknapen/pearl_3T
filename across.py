@@ -48,7 +48,7 @@ if experiment == 'stop':
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs] 
 elif experiment == 'rl':
-    which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop')
+    which_sjs = (sjs_info['Incl_ex'] == 'ok')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs]
 
@@ -72,7 +72,8 @@ if phase == 'test' and experiment == 'rl':
                                         event_conditions_for_covariates=analysis_info['rl_test_event_types_for_covariates'],
                                         sj_covariates=analysis_info['rl_test_sj_covariates'], 
                                         interval=analysis_info['deconvolution_interval'], 
-                                        output_filename = op.join(opd, roi + '_deco.pdf'))
+                                        output_filename = op.join(opd, roi + '_deco.pdf'),
+                                        rl_test_FIR_amplitude_range = analysis_info['rl_test_FIR_amplitude_range'], rl_test_FIR_pe_range = analysis_info['rl_test_FIR_pe_range'])
 
 if experiment == 'stop':
     for roi in analysis_info['stop_rois']: # , 'temporal_middle'

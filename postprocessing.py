@@ -13,6 +13,9 @@ from IPython import embed as shell
 #
 #   run as in:
 #
+#   needs a working pytables install that doesn't crash.
+#   On aeneas, knapen has a conda env called 'cf', which works.
+#
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
 # for s in {001..049}
 # do
@@ -20,6 +23,14 @@ from IPython import embed as shell
 #     python postprocessing.py sub-$s stop Stop &
 # done
 # # python across.py stop Stop
+
+# export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
+# for s in {001..049}
+# do
+#     echo sub-$s
+#     python postprocessing.py sub-$s rl test &
+# done
+# python across.py rl test
 
 from pearl.surf.surf_draw import all2surf
 import pearl.rl as rl
@@ -53,7 +64,7 @@ if phase == 'test' and experiment == 'rl':
                     vol_regressor_list = volreg_files, 
                     behavior_file_list = behavior_files, 
                     mapper_file = 'zstat2_flirt',
-                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_threshold = analysis_info['MNI_mask_threshold'],
                     mask_direction = 'pos',
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],
@@ -71,7 +82,7 @@ if phase == 'train' and experiment == 'rl':
                     vol_regressor_list = volreg_files, 
                     behavior_file_list = behavior_files, 
                     mapper_file = 'zstat2_flirt',
-                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_threshold = analysis_info['MNI_mask_threshold'],
                     mask_direction = 'pos',
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],

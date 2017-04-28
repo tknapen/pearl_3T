@@ -102,7 +102,8 @@ def plot_deco_results_train(all_deco_files, subj_data, interval = [-3,15], outpu
     pl.savefig(output_filename)
 
 
-def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, event_conditions_for_covariates, sj_covariates = ['Beta', 'SSRT'], interval = [-3,15], output_filename = ''):
+def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, event_conditions_for_covariates, sj_covariates = ['Beta', 'SSRT'], interval = [-3,15], output_filename = '', 
+    rl_test_FIR_amplitude_range = [0,0], rl_test_FIR_pe_range = [0,0]):
     import matplotlib.pyplot as pl
     import seaborn as sn
     import pandas as pd
@@ -110,8 +111,6 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     from IPython import embed as shell
     import statsmodels.api as sm
 
-    sn.set_style('ticks')
-    # shell()
     stats_threshold = 0.05
     all_data = np.array([np.loadtxt(df) for df in all_deco_files])
     timepoints = np.linspace(interval[0],interval[1],all_data.shape[-1])
@@ -119,65 +118,99 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
 
     covariate_event_indices = [event_conditions.index(ecc) for ecc in event_conditions_for_covariates]
     cond_diffs = ['ll-ww', 'll-wl_u', 'ww-wl_u']
+    all_event_names = new_event_conditions
+    # shell()
+    sets = [0,1,2,3]
+    colors = np.array(['g','orange','orange','r'])
 
-    shell()
+    color_dict = dict(zip(all_event_names, colors))
+
 
     roi_data_diffs = np.squeeze(np.array([  all_data[:,new_event_conditions=='ll'] - all_data[:,new_event_conditions=='ww'], 
                             all_data[:,new_event_conditions=='ll'] - all_data[:,new_event_conditions=='wl_u'], 
                             all_data[:,new_event_conditions=='ww'] - all_data[:,new_event_conditions=='wl_u'] ]
                             )).transpose(1,0,2)
 
-    # take parameters from subjects, z-score and create design matrix
-    par_data = np.array([np.array(subj_data[par], dtype = float) for par in sj_covariates])
-    par_data_n = ((par_data.T-np.mean(par_data, axis = -1))/np.std(par_data, axis = -1)).T
-    X = np.vstack([np.ones((1,roi_data_diffs.shape[0])), par_data_n]).T
+    sig = -np.log10(stats_threshold)
+    # if roi_name == 'Caudate':
+    #     shell()
+    sn.set_style('ticks')
+    f = pl.figure(figsize = (5,11))
+    s = f.add_subplot(3,1,1)
+    s.set_title(roi + ' gain')
+    s.axhline(0, c='k', lw = 0.25)
+    s.axvline(0, c='k', lw = 0.25)
+    s.set_xlabel('Time [s]')
+    s.set_ylabel('BOLD % signal change')
 
-    # fitting with both lstsq and ols for stats and beta values
-    p_T_vals = np.zeros((len(new_event_conditions),all_data.shape[-1], X.shape[-1]+1))
-    betas = np.zeros((len(new_event_conditions),all_data.shape[-1], X.shape[-1]))
-    for i, et in enumerate(new_event_conditions):
+    min_d = all_data.transpose((0,2,1))[:,:,[0,1,2]].mean(axis = 0).min()
+    for x in range(len(sets)):
+        sn.tsplot(all_data.transpose((0,2,1))[:,:,sets[x]], time = timepoints, condition = all_event_names[sets[x]], legend = True, ax = s, color = color_dict)
+        plot_significance_lines(all_data.transpose((0,2,1))[:,:,[sets[x]]], time_points = timepoints, offset=0.0125+rl_test_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [colors[sets[x]]])
+    s.set_ylim(rl_test_FIR_amplitude_range)
+    s.set_xlim([timepoints[0], timepoints[-1]])
+    sn.despine(offset = 10, ax = s)
+
+    pl.legend()
+
+    ##############################################################################################################
+    #
+    # Now, we compute the correlations with Beta
+    #
+    ##############################################################################################################
+
+    # ssrt
+    ssrt = np.array(subj_data['SSRT'], dtype = float)
+    ssrt = (ssrt - ssrt.mean()) / ssrt.std()
+
+    # beta
+    beta = np.array(subj_data['Beta'], dtype = float)
+    beta = (beta - beta.mean()) / beta.std()
+
+    X = np.vstack([np.ones(len(all_deco_files)), ssrt, beta]).T
+
+    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]+1))
+    tcs = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]))
+    for i, et in enumerate(all_event_names):
         for x in range(all_data.shape[-1]):
             model = sm.OLS(np.squeeze(all_data[:,i,x]),X)
             results = model.fit()
-            p_T_vals[i,x,:X.shape[-1]] = -np.log10(results.pvalues)
-            p_T_vals[i,x,X.shape[-1]] = -np.log10(results.f_pvalue)
-            betas[i,x,:] = results.params
+            p_T_vals[i,x,:X.shape[1]] = -np.log10(results.pvalues)
+            p_T_vals[i,x,-1] = -np.log10(results.f_pvalue)
+            tcs[i,x] = results.params
 
-    stats_thres = -np.log10(stats_threshold)
-    above_threshold = p_T_vals > stats_thres
+    for i, c in enumerate(['SSRT', 'Beta']): # , 'Beta'
+        s = f.add_subplot(3,1,2+i)
+        s.set_title(roi + ' corrs %s'%c)
+        s.axhline(0, c='k', lw = 0.25)
+        s.axvline(0, c='k', lw = 0.25)
+        s.set_xlabel('Time [s]')
+        s.set_ylabel('beta values')        
+        for j, en in enumerate(all_event_names):
+            data = tcs[j,:,i+1]
+            pl.plot(timepoints, data, color = colors[j], label = en)
 
+            sig_periods = p_T_vals[j,:,i+1] > sig
 
-    # now, for some plotting
-    f = pl.figure(figsize = (5,11))
-    s = f.add_subplot(311)
-    s.set_title('FIR responses %s'%roi)
-    for i, et in enumerate(event_conditions_for_covariates):
-        for x in range(p_T_vals.shape[-1]):
-            significant_corr_times = above_threshold[covariate_event_indices[i],:,x]
-            # if np.sum(significant_corr_times) > 0:
-                # s.axvspan(np.array(timepoints[significant_corr_times])[0] - 0.5, np.array(timepoints[significant_corr_times])[-1] + 0.5, color = ['k','b'][x], alpha = 0.3)
-    sn.tsplot(all_data[:,covariate_event_indices,:].transpose((0,2,1)), time = timepoints, condition = np.array(event_conditions)[covariate_event_indices], ci = 68, color = ['g','r'])
-    s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
-    s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
-    s.set_ylabel('percent signal change')
-    sn.despine(offset=10)
+            # take care of start and end of deconvolution interval.
+            if sig_periods[0] == True:
+                sig_periods[0] = False
+            if sig_periods[-1] == True:
+                sig_periods[-1] = False
 
-    for i, et in enumerate(event_conditions_for_covariates):
-        s = f.add_subplot(312+i)   
-        pl.title(event_conditions_for_covariates[i])
-        for x in range(len(sj_covariates)):
-            pl.plot(timepoints, betas[covariate_event_indices[i],:,x+1], label = sj_covariates[x], c = ['k','b'][x], alpha = 0.5)
-            significant_corr_times = above_threshold[covariate_event_indices[i],:,x+1]
-            # if np.sum(significant_corr_times) > 0:
-                # pl.plot([np.array(timepoints[significant_corr_times])[0] - 0.5, np.array(timepoints[significant_corr_times])[-1] + 0.5], np.array([-0.015, -0.015]) + x * 0.002, color = ['k','b'][x], alpha = 1.0, lw = 2.5)
-        s.axhline(0, color = 'k', alpha = 0.5, lw = 0.5)
-        s.axvline(0, color = 'k', alpha = 0.5, lw = 0.5)
-        s.set_ylabel('Regression coefficient [a.u.]')
-        sn.despine(offset=10)
-        s.set_xlabel('time [s]')
+            nr_blocks = int(np.floor(np.abs(np.diff(sig_periods.astype(int))).sum() / 2.0))
+            if nr_blocks > 0:
+                print('# blocks found: %i'%nr_blocks)
+                for b in range(nr_blocks):
+                    time_sig = np.arange(timepoints.shape[0])[np.r_[False, np.abs(np.diff(sig_periods)) > 0]][b*2:(b*2)+2]
+                    # time_sig = np.arange(timepoints.shape[0])[sig_periods]
+                    pl.plot([timepoints[time_sig[0]]-0.5, timepoints[time_sig[-1]] + 0.5], [0.0125 + rl_test_FIR_pe_range[0]+0.0125*j, 0.0125 + rl_test_FIR_pe_range[0]+0.0125*j], color = colors[j], linewidth = 3.0, alpha = 0.8)
+        s.set_ylim(rl_test_FIR_pe_range)
+        s.set_xlim([timepoints[0], timepoints[-1]])
         pl.legend()
+        sn.despine(offset = 10, ax = s)
+
     pl.tight_layout()
-    # pl.show()
 
     pl.savefig(output_filename)
 

@@ -67,7 +67,8 @@ sub_id = str(sys.argv[1])
 experiment = str(sys.argv[2])
 
 # from pearl.parameters import *
-execfile('pearl/parameters.py')
+# execfile('pearl/parameters.py')
+exec(open("pearl/parameters.py").read())
 
 # we set up the folders and logging there.
 if not op.isdir(preprocessed_data_dir):

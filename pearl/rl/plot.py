@@ -111,7 +111,7 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     from IPython import embed as shell
     import statsmodels.api as sm
 
-    stats_threshold = 0.05
+    stats_threshold = 0.0125
     all_data = np.array([np.loadtxt(df) for df in all_deco_files])
     timepoints = np.linspace(interval[0],interval[1],all_data.shape[-1])
     new_event_conditions = [evc.replace('.','_') for evc in event_conditions]
@@ -135,8 +135,8 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     # if roi_name == 'Caudate':
     #     shell()
     sn.set_style('ticks')
-    f = pl.figure(figsize = (5,11))
-    s = f.add_subplot(3,1,1)
+    f = pl.figure(figsize = (5,len(sj_covariates)*4+3))
+    s = f.add_subplot(len(sj_covariates)+1,1,1)
     s.set_title(roi + ' gain')
     s.axhline(0, c='k', lw = 0.25)
     s.axvline(0, c='k', lw = 0.25)
@@ -159,15 +159,15 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
     #
     ##############################################################################################################
 
-    # ssrt
-    ssrt = np.array(subj_data['SSRT'], dtype = float)
-    ssrt = (ssrt - ssrt.mean()) / ssrt.std()
+    # construct across subjects covariate design matrix
+    X = [np.ones(len(all_deco_files))]
+    for cov_name in sj_covariates:
+        this_cov = np.array(subj_data[cov_name], dtype = float)
+        # z-score
+        this_cov = (this_cov - this_cov.mean()) / this_cov.std()
+        X.append(this_cov)
 
-    # beta
-    beta = np.array(subj_data['Beta'], dtype = float)
-    beta = (beta - beta.mean()) / beta.std()
-
-    X = np.vstack([np.ones(len(all_deco_files)), ssrt, beta]).T
+    X = np.array(X).T
 
     p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]+1))
     tcs = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]))
@@ -179,8 +179,8 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
             p_T_vals[i,x,-1] = -np.log10(results.f_pvalue)
             tcs[i,x] = results.params
 
-    for i, c in enumerate(['SSRT', 'Beta']): # , 'Beta'
-        s = f.add_subplot(3,1,2+i)
+    for i, c in enumerate(sj_covariates): # , 'Beta'
+        s = f.add_subplot(len(sj_covariates)+1,1,2+i)
         s.set_title(roi + ' corrs %s'%c)
         s.axhline(0, c='k', lw = 0.25)
         s.axvline(0, c='k', lw = 0.25)
@@ -211,12 +211,198 @@ def plot_deco_results_test(all_deco_files, subj_data, event_conditions, roi, eve
         sn.despine(offset = 10, ax = s)
 
     pl.tight_layout()
+    # pl.show()
 
     pl.savefig(output_filename)
 
+def plot_deco_results_test_covariates_per_event_type(all_deco_files, 
+                subj_data, event_conditions, roi, event_conditions_for_covariates, 
+                sj_covariates = {'ll':['Beta', 'SSRT'],'ww':['Beta', 'SSRT'],'wl_u':['Beta', 'SSRT'],'wl_l':['Beta', 'SSRT']}, interval = [-3,15], output_filename = '', 
+    rl_test_FIR_amplitude_range = [0,0], rl_test_FIR_pe_range = [0,0]):
+    import matplotlib.pyplot as pl
+    import seaborn as sn
+    import pandas as pd
+    import numpy as np
+    from IPython import embed as shell
+    import statsmodels.api as sm
+
+
+    # shell()
+
+    stats_threshold = 0.0125
+    # all_data = np.array([np.loadtxt(df) for df in all_deco_files])
+    all_data = [pd.read_csv(df, sep = '\t', index_col=0, header=0).T for df in all_deco_files]
+    timepoints = np.array(all_data[0].index, dtype = float)
+
+    all_data_np = np.array([np.array(ad[list(sj_covariates.keys())]) for ad in all_data])
+    condition_names = list(sj_covariates.keys())
+
+    ##############################################################################################################
+    #
+    # Now, we compute the correlations / betas
+    #
+    ##############################################################################################################
+
+    # construct across subjects covariate design matrices
+    X = []
+    for i, nec in enumerate(condition_names):
+        Xt = np.ones((len(sj_covariates[nec])+1, len(subj_data)))
+        for j, cov_name in enumerate(sj_covariates[nec]):
+            this_cov = np.array(subj_data[cov_name], dtype=float)
+            # z-score
+            Xt[j+1,:] = (this_cov - this_cov.mean()) / this_cov.std()
+        X.append(Xt.T)
+
+    # across subjects GLM
+    p_T_dict = {}
+    beta_dict = {}
+    for i, nec in enumerate(condition_names):
+        p_T_vals = np.zeros((all_data_np.shape[1], X[i].shape[1]+1))
+        betas = np.zeros((all_data_np.shape[1], X[i].shape[1]))
+        for x in range(all_data_np.shape[1]):
+            model = sm.OLS(np.squeeze(all_data_np[:,x,i]),X[i])
+            results = model.fit()
+            p_T_vals[x,:X[i].shape[1]] = -np.log10(results.pvalues)
+            p_T_vals[x,-1] = -np.log10(results.f_pvalue)
+            betas[x] = results.params
+        p_T_dict.update({nec:pd.DataFrame(p_T_vals, index = timepoints, columns = ['int'] + sj_covariates[nec] + ['all_F'])})
+        beta_dict.update({nec:pd.DataFrame(betas, index = timepoints, columns = ['int'] + sj_covariates[nec])})
+
+    ##############################################################################################################
+    #
+    # Plotting
+    #
+    ##############################################################################################################
+
+    color_dict = dict(zip(['ww','wl_u','ll'], ['g','k','r']))
+    cv_color_dict = dict(zip(['int','SSRT','ac','med','Beta'],['k','r','g','orange','brown']))
+
+    sig = -np.log10(stats_threshold)
+    sn.set_style('ticks')
+    f = pl.figure(figsize = (5,len(sj_covariates)*5+3))
+    s = f.add_subplot(len(sj_covariates)+1,1,1)
+    s.set_title(roi + ' gain')
+    s.axhline(0, c='k', lw = 0.25)
+    s.axvline(0, c='k', lw = 0.25)
+    s.set_xlabel('Time [s]')
+    s.set_ylabel('BOLD % signal change')
+
+    min_d = all_data_np.min()
+    sn.tsplot(all_data_np, time = timepoints, condition = condition_names, legend = True, ax = s, color = color_dict)
+    # plot_significance_lines(all_data_np, time_points = timepoints, offset=0.0125+rl_test_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [color_dict[cn] for cn in condition_names])
+    s.set_ylim(rl_test_FIR_amplitude_range)
+    sn.despine(offset = 10, ax = s)
+
+    pl.legend()
+
+    # plotting betas and stats
+    for i, nec in enumerate(condition_names):
+        s = f.add_subplot(len(sj_covariates)+1,1,2+i)
+        s.set_title(roi + ' corrs %s'%nec)
+        s.axhline(0, c='k', lw = 0.25)
+        s.axvline(0, c='k', lw = 0.25)
+        s.set_xlabel('Time [s]')
+        s.set_ylabel('beta values')        
+        betas = beta_dict[nec]
+        p_T_vals = p_T_dict[nec]
+        for j, cn in enumerate(p_T_dict[nec].columns):
+            if cn != 'all_F':
+                # find out which color to use
+                this_color = [cv_color_dict[ck] for ck in cv_color_dict.keys() if ck in cn][0]
+                pl.plot(timepoints, betas[cn], c=this_color, label=cn)
+
+                # take care of start and end of deconvolution interval.
+                sig_periods = np.array(p_T_vals[cn]) > sig
+                if sig_periods[0] == True:
+                    sig_periods[0] = False
+                if sig_periods[-1] == True:
+                    sig_periods[-1] = False
+
+                nr_blocks = int(np.floor(np.abs(np.diff(sig_periods.astype(int))).sum() / 2.0))
+                if nr_blocks > 0:
+                    print('# blocks found: %i'%nr_blocks)
+                    for b in range(nr_blocks):
+                        time_sig = np.arange(timepoints.shape[0])[np.r_[False, np.abs(np.diff(sig_periods)) > 0]][b*2:(b*2)+2]
+                        pl.plot([timepoints[time_sig[0]]-0.5, timepoints[time_sig[-1]] + 0.5], [0.0125 + rl_test_FIR_pe_range[0]+0.0125*j, 0.0125 + rl_test_FIR_pe_range[0]+0.0125*j], color = this_color, linewidth = 3.0, alpha = 0.8)
+        s.set_ylim(rl_test_FIR_pe_range)
+        s.set_xlim([timepoints[0], timepoints[-1]])
+        pl.legend()
+        sn.despine(offset = 10, ax = s)
+
+    pl.tight_layout()
+
+    pl.savefig(output_filename)
+
+def extract_timepoints_results_test(all_deco_files, subj_data, event_conditions, roi, event_conditions_for_covariates, sj_covariates = ['Beta', 'SSRT'], interval = [-2,10]):
+    import matplotlib.pyplot as pl
+    import seaborn as sn
+    import pandas as pd
+    import numpy as np
+    from IPython import embed as shell
+    import statsmodels.api as sm
+    import scipy.stats as st
+
+    stats_threshold = 0.05
+    sig = -np.log10(stats_threshold)
+
+    all_data = np.array([np.loadtxt(df) for df in all_deco_files])
+    timepoints = np.linspace(interval[0],interval[1],all_data.shape[-1])
+    new_event_conditions = [evc.replace('.','_') for evc in event_conditions]
+    all_event_names = new_event_conditions
+
+    # construct across subjects covariate design matrix
+    X = [np.ones(len(all_deco_files))]
+    for cov_name in sj_covariates:
+        this_cov = np.array(subj_data[cov_name], dtype = float)
+        # z-score
+        this_cov = (this_cov - this_cov.mean()) / this_cov.std()
+        X.append(this_cov)
+
+    X = np.array(X).T
+
+    p_T_vals = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]+1))
+    tcs = np.zeros((len(all_event_names),all_data.shape[-1], X.shape[1]))
+    for i, et in enumerate(all_event_names):
+        for x in range(all_data.shape[-1]):
+            model = sm.OLS(np.squeeze(all_data[:,i,x]),X)
+            results = model.fit()
+            p_T_vals[i,x,:X.shape[1]] = -np.log10(results.pvalues)
+            p_T_vals[i,x,-1] = -np.log10(results.f_pvalue)
+            tcs[i,x] = results.params
+
+    append_df = {}
+    for i, c in enumerate(sj_covariates): # , 'Beta'
+        for j, en in enumerate(all_event_names):
+            data = tcs[j,:,i+1]
+            sig_periods = p_T_vals[j,:,i+1] > sig
+
+            # take care of start and end of deconvolution interval.
+            if sig_periods[0] == True:
+                sig_periods[0] = False
+            if sig_periods[-1] == True:
+                sig_periods[-1] = False
+
+            nr_blocks = int(np.floor(np.abs(np.diff(sig_periods.astype(int))).sum() / 2.0))
+            if nr_blocks > 0:
+                print('# blocks found: %i'%nr_blocks)
+                for b in range(nr_blocks):
+                    time_sig = np.arange(timepoints.shape[0])[np.r_[False, np.abs(np.diff(sig_periods)) > 0]][b*2:(b*2)+2]
+                    # time_sig = np.arange(timepoints.shape[0])[sig_periods]
+                    print(c, str(b), en, timepoints[time_sig], np.argmax(p_T_vals[j,:,i+1]))
+                    print(all_data[:,j,np.argmax(p_T_vals[j,:,i+1])])
+                    print(10**-p_T_vals[j,:,i+1].max())
+                    append_df.update({c + '_' + en: pd.Series(all_data[:,j,np.argmax(p_T_vals[j,:,i+1])], index = subj_data.index)})
+    append_df = pd.DataFrame(append_df)
+    all_stuff = subj_data.append(append_df)
+
+    st.pearsonr(np.array(subj_data['ac_ww'], dtype=float), np.array(append_df['Beta_ww'], dtype=float))
+    st.pearsonr(np.array(subj_data['medRT_ll'], dtype=float), np.array(append_df['SSRT_ll'], dtype=float))
+    st.pearsonr(np.array(subj_data['medRT_ww'], dtype=float), np.array(append_df['SSRT_ww'], dtype=float))
+    
+    # shell()
+
+
 def plot_deco_results_test_MR():
-
-
 
     rd_diff = np.squeeze(roi_data[:,:,conditions == 'll']) - np.squeeze(roi_data[:,:,conditions == 'ww'])
     betas, res, rank, sem = np.linalg.lstsq(X, rd_diff)

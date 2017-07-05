@@ -214,7 +214,7 @@ def fit_FIR_roi_train(experiment,
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
                             columns = fd.deconvolution_interval_timepoints, 
                             index = all_event_names)
-        np.savetxt(op.join(output_tsv_dir, roi + '_deco_train.tsv'), np.array(op_df), delimiter = '\t')
+        op_df.to_csv(op.join(output_tsv_dir, roi + '_deco_train.tsv'), sep = '\t')
 
 def fit_FIR_roi_test(experiment,
                 h5_file,
@@ -231,7 +231,8 @@ def fit_FIR_roi_test(experiment,
                 event_conditions = ['ww', 'wl.u', 'wl.l', 'll'],
                 TR = 2.0, 
                 output_pdf_dir = '', 
-                output_tsv_dir = ''):
+                output_tsv_dir = '',
+                which_signal_selection = 'projection'):
 
     import nibabel as nib
     import numpy as np
@@ -288,15 +289,19 @@ def fit_FIR_roi_test(experiment,
         over_mask_threshold = (contrast_data[:,0]>mask_threshold)
         iceberg_tip = contrast_data[over_mask_threshold, 0]
 
-        projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
-        av_time_course = time_course_data.mean(axis = 0)
+        if which_signal_selection == 'projection':
+            projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
+            this_timecourse = projected_time_course
+        elif which_signal_selection == 'hard':
+            av_time_course = time_course_data[over_mask_threshold,:].mean(axis = 0)
+            this_timecourse = av_time_course
 
         nuisance_regressors = np.nan_to_num(all_vol_regs)
 
         # shell()
 
         fd = FIRDeconvolution(
-            signal = projected_time_course, 
+            signal = this_timecourse, 
             events = [event_types_times[evt] for evt in new_event_conditions], # dictate order
             event_names = new_event_conditions, 
             durations = event_types_durs, #{evt: evd[evt] for evt, evd in zip(event_conditions, event_types_durs)},
@@ -353,7 +358,7 @@ def fit_FIR_roi_test(experiment,
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in new_event_conditions]), 
                             columns = fd.deconvolution_interval_timepoints, 
                             index = new_event_conditions)
-        np.savetxt(op.join(output_tsv_dir, roi + '_deco_test.tsv'), np.array(op_df), delimiter = '\t')
+        op_df.to_csv(op.join(output_tsv_dir, roi + '_deco_test_%s.tsv'%which_signal_selection), sep = '\t')
 
 
 

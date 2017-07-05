@@ -43,7 +43,8 @@ experiment = str(sys.argv[2])
 phase = str(sys.argv[3])
 
 # from pearl.parameters import *
-execfile('pearl/parameters.py')
+# execfile('pearl/parameters.py')
+exec(open("pearl/parameters.py").read())
 
 behavior_files = natural_sort(glob.glob(op.join(opd, 'behavior', '*%s*.tsv'%phase)))
 in_files = natural_sort(glob.glob(op.join(opd, 'psc', '*%s*.nii.gz'%phase)))
@@ -58,6 +59,7 @@ except:
     pass
 
 if phase == 'test' and experiment == 'rl':
+    which_signal_selection = 'projection'
     rl.roi.fit_FIR_roi_test(experiment = 'rl',
                     h5_file = op.join(opd, 'h5', 'roi.h5'),
                     in_files = in_files,
@@ -72,7 +74,8 @@ if phase == 'test' and experiment == 'rl':
                     roi_list = analysis_info['rl_test_rois'],
                     event_conditions = analysis_info['rl_test_event_conditions'],
                     output_pdf_dir = op.join(opd, 'figs', phase),
-                    output_tsv_dir = op.join(opd, 'roi', phase)
+                    output_tsv_dir = op.join(opd, 'roi', phase),
+                    which_signal_selection = which_signal_selection
                     )
 
 if phase == 'train' and experiment == 'rl':

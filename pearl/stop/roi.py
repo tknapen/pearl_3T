@@ -148,6 +148,7 @@ def fit_FIR_roi(experiment,
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
                             columns = fd.deconvolution_interval_timepoints, 
                             index = all_event_names)
-        np.savetxt(op.join(output_tsv_dir, roi + '_deco.tsv'), np.array(op_df), delimiter = '\t')
+        # np.savetxt(op.join(output_tsv_dir, roi + '_deco.tsv'), np.array(op_df), delimiter = '\t')
+        op_df.to_csv(op.join(output_tsv_dir, roi + '_deco_stop.tsv'), sep = '\t')
 
 

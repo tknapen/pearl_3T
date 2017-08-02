@@ -22,15 +22,73 @@ def plot_significance_lines(data, time_points, offset, slope, p_value_cutoff = 0
                 pl.plot([time_points[s[0]], time_points[s[-1]]], [offset + slope * i, offset + slope * i], c = pal[i], linewidth = 3.0, alpha = 0.8)
 
 
-def plot_deco_results_train(all_deco_files, subj_data, interval = [-3,15], output_filename = ''):
+def plot_deco_results_train(all_deco_files, subj_data, output_filename = ''):
     import matplotlib.pyplot as pl
     import seaborn as sn
     import pandas as pd
     import numpy as np
     from IPython import embed as shell
 
-    all_data = np.array([np.loadtxt(df) for df in all_deco_files])
-    timepoints = np.linspace(interval[0],interval[1],all_data.shape[-1])
+    stats_threshold = 0.0125
+    all_data = []
+    for df in all_deco_files:
+     all_data.append(pd.read_csv(df, sep = '\t', index_col=0, header=0).T)
+    timepoints = np.array(all_data[0].index, dtype = float)
+
+    # convert to numpy
+    condition_names = list(all_data[0].keys())
+    all_data_np = []
+    for ad in all_data:
+        all_data_np.append(np.array(ad[condition_names]))
+    all_data_np = np.array(all_data_np)
+
+    sets = [[0,3,6], [1,4,7], [2,5,8], [9], [10,11]]
+    colors = np.array(['r','r', 'r','g','g','g','b','b','b','k','c','m'])
+
+    color_dict = dict(zip(condition_names, colors))
+
+    sn.set_style('ticks')
+    f = pl.figure(figsize = (9,8))
+
+    for x in range(len(sets)):
+        if x in (0,1,3,4):
+            s = f.add_subplot(2,3,x+1)
+        else:
+            s = f.add_subplot(2,3,x+1, sharey = s)
+
+        s.axhline(0, c='k', lw = 0.25)
+        s.axvline(0, c='k', lw = 0.25)
+        s.set_xlabel('Time [s]')
+        s.set_xticks([0,10])
+        s.set_xticklabels([0,10])
+        if x % 2 == 0:
+            s.set_ylabel('BOLD % signal change')
+        else:
+            s.set_ylabel('beta values')
+
+        # if x != 1:
+        # tsplot : unit, time, condition
+        sn.tsplot(all_data_np[:,:,sets[x]], time = timepoints, condition = np.array(condition_names)[sets[x]], legend = True, ax = s, color = color_dict)
+        # else: # the difference curves
+        #     abcdef_corrs = all_data.transpose((0,2,1))[:,:,sets[x]]
+        #     abcdef_corr_diffs = np.array([abcdef_corrs[:,:,(c*2)]-abcdef_corrs[:,:,(c*2)+1] for c in range(3)]).transpose((1,2,0))
+
+        #     sn.tsplot(abcdef_corr_diffs, time = timepoints, condition = ['AB','CD','EF'], legend = True, ax = s)
+        min_d = all_data_np[:,:,sets[x]].min()
+
+        plot_significance_lines(all_data_np[:,:,sets[x]], time_points = timepoints, offset=min_d/20.0, slope=min_d/30.0, p_value_cutoff = 0.05, pal = colors[sets[x]])
+        pl.legend()
+
+
+
+        sn.despine(offset = 10, ax = s)
+
+    pl.tight_layout()
+
+    pl.savefig(output_filename)
+
+
+    # older shit
 
     # sets = [[0], [1,2,3], [4], [5,6]]
     # all_event_names = np.array(['stim.gain', 'stim.Q_chosen', 'stim.Q_notchosen', 'stim.Q_diff', 'fb.gain', 'fb.RPE', 'fb.unsRPE'])
@@ -61,15 +119,44 @@ def plot_deco_results_train(all_deco_files, subj_data, interval = [-3,15], outpu
     # gauged_data = all_data - all_data[:,:,gauge_times].mean(axis = -1)[:,:,np.newaxis]
     # all_data = gauged_data
 
+    # all_event_names = np.array([
+    #             'AB.gain', 'AB.Q_chosen', 'AB.Q_notchosen', 
+    #             'CD.gain', 'CD.Q_chosen', 'CD.Q_notchosen', 
+    #             'EF.gain', 'EF.Q_chosen', 'EF.Q_notchosen', 
+    #             'fb.gain', 'fb.RPE', 'fb.unsRPE' ])
+
+def plot_deco_results_train_corr(all_deco_files_roi_dict, subj_data, covariates_dict, interval_dict, output_filename = ''):
+    import matplotlib.pyplot as pl
+    import seaborn as sn
+    import pandas as pd
+    import numpy as np
+    from IPython import embed as shell
+
+    stats_threshold = 0.0125
+
+    shell()
+
+    all_data = []
+    for k in all_deco_files_roi_dict.keys():
+        all_roi_data = []
+        for df in all_deco_files_roi_dict[k]:
+            all_roi_data.append(pd.read_csv(df, sep = '\t', index_col=0, header=0)[covariates_dict[k]])
+        timepoints = np.array(all_roi_data[0].index, dtype = float)
+
+
+    # convert to numpy
+    condition_names = list(all_data[0].keys())
+    all_data_np = []
+    for ad in all_data:
+        all_data_np.append(np.array(ad[condition_names]))
+    all_data_np = np.array(all_data_np)
+
     sets = [[0,3,6], [1,4,7], [9], [10,11]]
-    all_event_names = np.array([
-                'AB.gain', 'AB.Q_chosen', 'AB.Q_notchosen', 
-                'CD.gain', 'CD.Q_chosen', 'CD.Q_notchosen', 
-                'EF.gain', 'EF.Q_chosen', 'EF.Q_notchosen', 
-                'fb.gain', 'fb.RPE', 'fb.unsRPE' ])
     colors = np.array(['r','r', 'r','g','g','g','b','b','b','k','c','m'])
 
-    color_dict = dict(zip(all_event_names, colors))
+    color_dict = dict(zip(condition_names, colors))
+
+    # shell()
 
     sn.set_style('ticks')
     f = pl.figure(figsize = (9,8))
@@ -85,15 +172,16 @@ def plot_deco_results_train(all_deco_files, subj_data, interval = [-3,15], outpu
             s.set_ylabel('beta values')
 
         # if x != 1:
-        sn.tsplot(all_data.transpose((0,2,1))[:,:,sets[x]], time = timepoints, condition = all_event_names[sets[x]], legend = True, ax = s, color = color_dict)
+        # tsplot : unit, time, condition
+        sn.tsplot(all_data_np[:,:,sets[x]], time = timepoints, condition = np.array(condition_names)[sets[x]], legend = True, ax = s, color = color_dict)
         # else: # the difference curves
         #     abcdef_corrs = all_data.transpose((0,2,1))[:,:,sets[x]]
         #     abcdef_corr_diffs = np.array([abcdef_corrs[:,:,(c*2)]-abcdef_corrs[:,:,(c*2)+1] for c in range(3)]).transpose((1,2,0))
 
         #     sn.tsplot(abcdef_corr_diffs, time = timepoints, condition = ['AB','CD','EF'], legend = True, ax = s)
-        min_d = all_data.transpose((0,2,1))[:,:,sets[x]].min()
+        min_d = all_data_np[:,:,sets[x]].min()
 
-        plot_significance_lines(all_data.transpose((0,2,1))[:,:,sets[x]], time_points = timepoints, offset=min_d/20.0, slope=min_d/30.0, p_value_cutoff = 0.05, pal = colors[sets[x]])
+        plot_significance_lines(all_data_np[:,:,sets[x]], time_points = timepoints, offset=min_d/20.0, slope=min_d/30.0, p_value_cutoff = 0.05, pal = colors[sets[x]])
         pl.legend()
         sn.despine(offset = 10, ax = s)
 
@@ -578,9 +666,159 @@ def plot_deco_results_test_MR():
     s.set_xticks([0,5,10])
     s.set_ylim([-0.05,0.09])
 
-
-
-
     pl.tight_layout()
 
 
+def plot_deco_results_for_publication(all_deco_files, subj_data, 
+            roi, interval = [-2,10], output_filename = '', 
+            sj_covariates = {},
+            rl_test_FIR_amplitude_range = [0,0], rl_test_FIR_pe_range = [0,0], 
+            second_plot_covariate = 'SSRT', slow_fast_condition = 'll'):
+    import matplotlib.pyplot as pl
+    import seaborn as sn
+    import pandas as pd
+    import numpy as np
+    from IPython import embed as shell
+    import statsmodels.api as sm
+
+    stats_threshold = 0.0125
+    # all_data = np.array([np.loadtxt(df) for df in all_deco_files])
+    all_data = [pd.read_csv(df, sep = '\t', index_col=0, header=0).T for df in all_deco_files]
+    timepoints = np.array(all_data[0].index, dtype = float)
+
+    all_data_np = np.array([np.array(ad[list(sj_covariates.keys())]) for ad in all_data])
+    condition_names = list(sj_covariates.keys())
+
+    ##############################################################################################################
+    #
+    # Now, we compute the correlations / betas
+    #
+    ##############################################################################################################
+
+    # construct across subjects covariate design matrices
+    X = []
+    for i, nec in enumerate(condition_names):
+        Xt = np.ones((len(sj_covariates[nec])+1, len(subj_data)))
+        for j, cov_name in enumerate(sj_covariates[nec]):
+            this_cov = np.array(subj_data[cov_name], dtype=float)
+            # z-score
+            Xt[j+1,:] = (this_cov - this_cov.mean()) / this_cov.std()
+        X.append(Xt.T)
+
+    # across subjects GLM
+    p_T_dict = {}
+    beta_dict = {}
+    for i, nec in enumerate(condition_names):
+        p_T_vals = np.zeros((all_data_np.shape[1], X[i].shape[1]+1))
+        betas = np.zeros((all_data_np.shape[1], X[i].shape[1]))
+        for x in range(all_data_np.shape[1]):
+            model = sm.OLS(np.squeeze(all_data_np[:,x,i]),X[i])
+            results = model.fit()
+            p_T_vals[x,:X[i].shape[1]] = -np.log10(results.pvalues)
+            p_T_vals[x,-1] = -np.log10(results.f_pvalue)
+            betas[x] = results.params
+        p_T_dict.update({nec:pd.DataFrame(p_T_vals, index = timepoints, columns = ['int'] + sj_covariates[nec] + ['all_F'])})
+        beta_dict.update({nec:pd.DataFrame(betas, index = timepoints, columns = ['int'] + sj_covariates[nec])})
+
+    ##############################################################################################################
+    #
+    # Plotting #1
+    #
+    ##############################################################################################################
+
+    # shell()
+
+
+    color_dict = dict(zip(['ww','wl_u','ll'], ['g','k','r']))
+    cv_color_dict = dict(zip(['int','SSRT','ac','med','Beta'],['k','r','g','orange','brown']))
+
+    sig = -np.log10(stats_threshold)
+    sn.set_style('ticks')
+    f = pl.figure(figsize = (5,12))
+    s = f.add_subplot(3,1,1)
+    s.set_title(roi + ' gain')
+    s.axhline(0, c='k', lw = 0.25)
+    s.axvline(0, c='k', lw = 0.25)
+    s.set_xlabel('Time [s]')
+    s.set_ylabel('BOLD % signal change')
+
+    min_d = all_data_np.min()
+    sn.tsplot(all_data_np, time = timepoints, condition = condition_names, legend = True, ax = s, color = color_dict)
+    # plot_significance_lines(all_data_np, time_points = timepoints, offset=0.0125+rl_test_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [color_dict[cn] for cn in condition_names])
+    s.set_ylim(rl_test_FIR_amplitude_range)
+    s.set_xlim([interval[0]+1, interval[1]-1])
+    sn.despine(offset = 10, ax = s)
+
+    pl.legend()
+
+    ##############################################################################################################
+    #
+    # Plotting #2, covariates
+    #
+    ##############################################################################################################
+    s = f.add_subplot(3,1,2)
+    s.set_title(roi + ' corrs ' + second_plot_covariate)
+    s.axhline(0, c='k', lw = 0.25)
+    s.axvline(0, c='k', lw = 0.25)
+    s.set_xlabel('Time [s]')
+    s.set_ylabel('beta values')        
+
+    for j, bn in enumerate(beta_dict.keys()):
+        # find out which color to use
+        this_color = color_dict[bn]
+        betas = beta_dict[bn][second_plot_covariate]
+        pl.plot(timepoints, betas, c=this_color, label=bn)
+
+        # take care of start and end of deconvolution interval.
+        sig_periods = np.array(p_T_dict[bn][second_plot_covariate]) > sig
+        if sig_periods[0] == True:
+            sig_periods[0] = False
+        if sig_periods[-1] == True:
+            sig_periods[-1] = False
+
+        nr_blocks = int(np.floor(np.abs(np.diff(sig_periods.astype(int))).sum() / 2.0))
+        if nr_blocks > 0:
+            print('# blocks found: %i'%nr_blocks)
+            for b in range(nr_blocks):
+                time_sig = np.arange(timepoints.shape[0])[np.r_[False, np.abs(np.diff(sig_periods)) > 0]][b*2:(b*2)+2]
+                pl.plot([timepoints[time_sig[0]]-0.5, timepoints[time_sig[-1]] + 0.5], [0.0125 + rl_test_FIR_pe_range[0]+0.0125*j, 0.0125 + rl_test_FIR_pe_range[0]+0.0125*j], color = this_color, linewidth = 3.0, alpha = 0.8)
+    s.set_ylim(rl_test_FIR_pe_range)
+    s.set_xlim([interval[0]+1, interval[1]-1])
+    pl.legend()
+    sn.despine(offset = 10, ax = s)    
+    pl.tight_layout()
+    # shell()
+
+    ##############################################################################################################
+    #
+    # Plotting #3, split on SSRT
+    #
+    ##############################################################################################################
+    
+    sf_color_dict = dict(zip(['SSRT_short', 'SSRT_long'],['k','gray']))
+    sf_rename_dict = dict(zip(['SSRT_short', 'SSRT_long'],['fast','slow']))
+
+    s = f.add_subplot(3,1,3)
+    s.set_title(roi + ' corrs split ' + slow_fast_condition)
+    s.axhline(0, c='k', lw = 0.25)
+    s.axvline(0, c='k', lw = 0.25)
+    s.set_xlabel('Time [s]')
+    s.set_ylabel('beta values')        
+
+    for j, bn in enumerate(sf_color_dict.keys()):
+        # find out which color to use
+        this_color = sf_color_dict[bn]
+        these_subjects = np.array(subj_data['SSRT_group'] == bn)
+        split_data = all_data_np[these_subjects,:,1].T # select the timecourse of 'successful stop'
+
+        sn.tsplot(split_data.T[:,:,np.newaxis], time = timepoints, condition = sf_rename_dict[bn], legend = True, ax = s, color = sf_color_dict[bn])
+
+    s.set_ylim(rl_test_FIR_amplitude_range)
+    s.set_xlim([interval[0]+1, interval[1]-1])
+    pl.legend()
+    sn.despine(offset = 10, ax = s)    
+    pl.tight_layout()
+    # shell()
+
+
+    pl.savefig(output_filename)

@@ -8,8 +8,9 @@ import glob
 import json
 import nipype
 import matplotlib.pyplot as pl
+import numpy as np
 from IPython import embed as shell
-
+# 
 #
 #   run as in:
 #
@@ -28,9 +29,9 @@ from IPython import embed as shell
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s rl test &
+#     python postprocessing.py sub-$s rl learn &
 # done
-# python across.py rl test
+# python across.py rl learn
 
 from pearl.surf.surf_draw import all2surf
 import pearl.rl as rl
@@ -78,22 +79,43 @@ if phase == 'test' and experiment == 'rl':
                     which_signal_selection = which_signal_selection
                     )
 
-if phase == 'train' and experiment == 'rl':
+if phase == 'learn' and experiment == 'rl':
+    which_signal_selection = 'projection'
     rl.roi.fit_FIR_roi_train(experiment = 'rl',
                     h5_file = op.join(opd, 'h5', 'roi.h5'),
                     in_files = in_files,
                     vol_regressor_list = volreg_files, 
                     behavior_file_list = behavior_files, 
                     mapper_file = 'zstat2_flirt',
-                    mask_threshold = analysis_info['MNI_mask_threshold'],
+                    mask_threshold = analysis_info['stat_mask_threshold'],
                     mask_direction = 'pos',
                     fmri_data_type = 'psc',
                     fir_frequency = analysis_info['deconvolution_frequency'],
                     fir_interval = analysis_info['deconvolution_interval'],
-                    roi_list = analysis_info['rl_train_rois'],
+                    roi_list = analysis_info['rl_train_rois_stat'],
                     output_pdf_dir = op.join(opd, 'figs', phase),
-                    output_tsv_dir = op.join(opd, 'roi', phase)
+                    output_tsv_dir = op.join(opd, 'roi', phase),
+                    which_signal_selection = which_signal_selection
                     )
+
+    which_signal_selection = 'hard'
+    rl.roi.fit_FIR_roi_train(experiment = 'rl',
+                    h5_file = op.join(opd, 'h5', 'roi.h5'),
+                    in_files = in_files,
+                    vol_regressor_list = volreg_files, 
+                    behavior_file_list = behavior_files, 
+                    mapper_file = 'zstat2_flirt',
+                    mask_threshold = np.inf,
+                    mask_direction = 'pos',
+                    fmri_data_type = 'psc',
+                    fir_frequency = analysis_info['deconvolution_frequency'],
+                    fir_interval = analysis_info['deconvolution_interval'],
+                    roi_list = analysis_info['rl_train_rois_anat'],
+                    output_pdf_dir = op.join(opd, 'figs', phase),
+                    output_tsv_dir = op.join(opd, 'roi', phase),
+                    which_signal_selection = which_signal_selection
+                    )
+
 
 if experiment == 'stop':
     stop.roi.fit_FIR_roi(experiment = 'stop',

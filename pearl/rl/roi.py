@@ -21,7 +21,8 @@ def fit_FIR_roi_train(experiment,
                 roi_list = ['fusifor','temporal_middle'],
                 TR = 2.0, 
                 output_pdf_dir = '', 
-                output_tsv_dir = ''):
+                output_tsv_dir = '',
+                which_signal_selection = 'projection'):
     """ fit_FIR_roi_train
     """
     import nibabel as nib
@@ -58,8 +59,8 @@ def fit_FIR_roi_train(experiment,
     stim_event_numbers = [12, 34, 56]
     stim_event_list, stim_duration_list, stim_Q_chosen_list, stim_Q_notchosen_list, stim_Q_diff_list = [], [], [], [], []
     for en in stim_event_numbers:
-        stim_event_list.append(np.array(all_event_df['Time'])[np.array(all_event_df['npair'] == en)])
-        stim_duration_list.append(np.array(all_event_df['Duration'])[np.array(all_event_df['npair'] == en)])
+        stim_event_list.append(np.array(all_event_df['onset'])[np.array(all_event_df['npair'] == en)])
+        stim_duration_list.append(np.array(all_event_df['duration'])[np.array(all_event_df['npair'] == en)])
         stim_Q_chosen_list.append(np.array(all_event_df['Q_chosen'])[np.array(all_event_df['npair'] == en)])
         stim_Q_notchosen_list.append(np.array(all_event_df['Q_notchosen'])[np.array(all_event_df['npair'] == en)])
         stim_Q_diff_list.append((np.array(all_event_df['Q_notchosen']) - np.array(all_event_df['Q_chosen']))[np.array(all_event_df['npair'] == en)])
@@ -139,7 +140,9 @@ def fit_FIR_roi_train(experiment,
 
     for roi in roi_list:
         contrast_data = roi_data_from_hdf(data_types_wildcards = [mapper_file], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'stats')
-        time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
+        time_course_data = []
+        for in_f in in_files:
+            time_course_data.append(roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type))
 
         time_course_data = np.hstack(time_course_data)
 
@@ -150,12 +153,20 @@ def fit_FIR_roi_train(experiment,
         over_mask_threshold = (contrast_data[:,0]>mask_threshold)
         iceberg_tip = contrast_data[over_mask_threshold, 0]
 
+        if mask_threshold == np.inf:
+            over_mask_threshold = np.ones_like(over_mask_threshold, dtype = bool)  
+            iceberg_tip = np.ones_like(over_mask_threshold, dtype = float)  
+
         projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
         av_time_course = time_course_data[over_mask_threshold].mean(axis = 0)
 
-        # nuisance_regressors = np.nan_to_num(all_vol_reg)
+        if which_signal_selection == 'projection':
+            this_timecourse = projected_time_course
+        elif which_signal_selection == 'hard':
+            this_timecourse = av_time_course
+
         fd = FIRDeconvolution(
-            signal = projected_time_course, 
+            signal = this_timecourse, 
             events = [stim_event_list[0], stim_event_list[1], stim_event_list[2], fb_events], # dictate order
             event_names = ['AB', 'CD', 'EF', 'fb'], 
             durations = {'AB':stim_duration_list[0], 'CD':stim_duration_list[1], 'EF':stim_duration_list[2], 'fb':fb_durations},
@@ -214,7 +225,7 @@ def fit_FIR_roi_train(experiment,
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in all_event_names]), 
                             columns = fd.deconvolution_interval_timepoints, 
                             index = all_event_names)
-        op_df.to_csv(op.join(output_tsv_dir, roi + '_deco_train.tsv'), sep = '\t')
+        op_df.to_csv(op.join(output_tsv_dir, roi + '_deco_train_%s.tsv'%which_signal_selection), sep = '\t')
 
 def fit_FIR_roi_test(experiment,
                 h5_file,
@@ -282,7 +293,10 @@ def fit_FIR_roi_test(experiment,
 
     for roi in roi_list:
         contrast_data = roi_data_from_hdf(data_types_wildcards = [roi], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = 'rois')
-        time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
+        # time_course_data = [roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type) for in_f in in_files]
+        time_course_data = []
+        for in_f in in_files:
+            time_course_data.append(roi_data_from_hdf(data_types_wildcards = [os.path.split(in_f)[-1][:-7]], roi_name_wildcard = roi, hdf5_file = h5_file, folder_alias = fmri_data_type))
 
         time_course_data = np.hstack(time_course_data)
 
@@ -339,7 +353,7 @@ def fit_FIR_roi_test(experiment,
         sn.despine(offset = 10, ax = s)
         pl.tight_layout()
 
-        pl.savefig(op.join(output_pdf_dir, roi + '_deco.pdf'))
+        pl.savefig(op.join(output_pdf_dir, roi + '_deco_%s.pdf'%which_signal_selection))
 
         f = pl.figure(figsize = (9,3))
         s = f.add_subplot(111)
@@ -353,7 +367,7 @@ def fit_FIR_roi_test(experiment,
         pl.legend()
         sn.despine(offset = 10, ax = s)
         pl.tight_layout()
-        pl.savefig(op.join(output_pdf_dir, roi + '_deco_tc.pdf'))
+        pl.savefig(op.join(output_pdf_dir, roi + '_deco_tc_%s.pdf'%which_signal_selection))
 
         op_df = pd.DataFrame(np.array([np.squeeze(np.nan_to_num(fd.betas_for_cov(en).T)) for en in new_event_conditions]), 
                             columns = fd.deconvolution_interval_timepoints, 

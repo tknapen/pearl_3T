@@ -258,15 +258,14 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     import numpy as np
     from IPython import embed as shell
     import statsmodels.api as sm
+    import scipy.stats
 
     stats_threshold = 0.0125
-    # all_data = np.array([np.loadtxt(df) for df in all_deco_files])
     all_data = [pd.read_csv(df, sep = '\t', index_col=0, header=0).T for df in all_deco_files]
     timepoints = np.array(all_data[0].index, dtype = float)
 
     condition_names = ['correct', 'succesful_stop', 'Failed_stop'] # -> don't leave to chance but copied from roi.py where the deconv happens
     all_data_np = np.array([np.array(ad[condition_names]) for ad in all_data])
-    # shell()
 
     ##############################################################################################################
     #
@@ -364,9 +363,7 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     pl.legend()
     sn.despine(offset = 10, ax = s)    
     pl.tight_layout()
-    # shell()
-    # for i in range(len(timepoints)):
-    #     print(i, timepoints[i]) 
+
     ##############################################################################################################
     #
     # Plotting #3, split on SSRT
@@ -378,40 +375,16 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
 
     s = f.add_subplot(3,1,3)
     s.set_title('Corr ' + slow_fast_condition)
-    # s.axhline(0, c='k', lw = 0.25)
-    # s.axvline(0, c='k', lw = 0.25)
-    # s.set_xlabel('Time [s]')
-    # s.set_ylabel('beta values')        
-
-    # f = pl.figure()
-    # s = f.add_subplot(111)
-    # shell()
-    # SSRT_median = np.median(np.array(subj_data['SSRT'], dtype = float))
-    # pl.scatter(all_data_np[:,15,1],np.array(subj_data['SSRT'], dtype = float))
-    ssrt_pd = pd.DataFrame(np.array([all_data_np[:,15,1],np.array(subj_data['SSRT'], dtype = float)]).T, index=np.arange(all_data_np.shape[0]), columns=['BOLD','SSRT'])
+    peak_timepoint = timepoints == np.argmax(p_T_dict[slow_fast_condition][second_plot_covariate])
+    ssrt_pd = pd.DataFrame(np.array([all_data_np[:,peak_timepoint,1].squeeze(), np.array(subj_data['SSRT'], dtype = float)]).T, index=np.arange(all_data_np.shape[0]), columns=['BOLD','SSRT'])
     sn.regplot("BOLD", "SSRT", data=ssrt_pd, color='r', ax=s)
-    # sn.lmplot(x="BOLD", y="SSRT", data=ssrt_pd, hue='r', ax=s)
     s.set_ylim([0,600])
     s.set_xlim([-0.3,0.25])
-
-    # for j, bn in enumerate(sf_names):
-    #     # find out which color to use
-    #     this_color = sf_color_dict[bn]
-    #     if bn == 'SSRT_short':
-    #         these_subjects = np.array(np.array(subj_data['SSRT'], dtype = float) < SSRT_median, dtype = bool)
-    #     elif bn == 'SSRT_long':
-    #         these_subjects = np.array(np.array(subj_data['SSRT'], dtype = float) >= SSRT_median, dtype = bool)
-    #     split_data = all_data_np[these_subjects,:,condition_names.index(slow_fast_condition)].T # select the timecourse of 'successful stop': index # 1
-
-    #     sn.tsplot(split_data.T[:,:,np.newaxis], time = timepoints, condition = sf_rename_dict[bn], legend = True, ax = s, color = sf_color_dict[bn])
-
-
-    # pl.legend()
     sn.despine(offset = 10, ax = s)    
     pl.tight_layout()
-    # pl.show()
-    # shell()
 
-
+    ssrt_data = np.array(subj_data[second_plot_covariate], dtype = float)
     pl.savefig(output_filename)
-
+    for i, cn in enumerate(condition_names):
+        peak_time = timepoints == np.argmax(p_T_dict[cn][second_plot_covariate])
+        print(cn, timepoints[peak_time], scipy.stats.pearsonr(all_data_np[:,peak_time,i].squeeze(), ssrt_data))

@@ -177,13 +177,16 @@ if experiment == 'stop':
         'correct': ['SSRT'],
         'succesful_stop': ['SSRT'],
         'Failed_stop': ['SSRT'],
-        # 'wl_l': ['SSRT', 'ac_wsuccesful_stop'],
         },
         {
         'correct': ['SSRT', 'Beta'],
         'succesful_stop': ['SSRT', 'Beta'],
         'Failed_stop': ['SSRT', 'Beta'],
-        # 'wl_l': ['SSRT', 'Beta', 'ac_wsuccesful_stop'],
+        },
+        {
+        'correct': ['SSRT', 'Beta', 'ac_wsuccesful_stop'],
+        'succesful_stop': ['SSRT', 'Beta', 'ac_wsuccesful_stop'],
+        'Failed_stop': ['SSRT', 'Beta', 'ac_wsuccesful_stop'],
         }
     ]
     # this code was for foraging

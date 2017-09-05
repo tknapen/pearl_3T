@@ -50,27 +50,35 @@ if (experiment == 'stop') | ((experiment == 'rl') and (phase == 'test')):
     which_sjs = (sjs_info['Incl_ex'] == 'ok')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs] 
-# elif (experiment == 'rl') and (phase == 'learn'):
-#     which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop')
-#     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
-#     good_sjs_info = sjs_info[which_sjs]
 elif (experiment == 'rl') and (phase == 'learn'):
-    which_sjs = (sjs_info['good_bad'] == 'good')
+    which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs]
+# elif (experiment == 'rl') and (phase == 'learn'):
+#     which_sjs = (sjs_info['good_bad'] == 'good')
+#     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
+#     good_sjs_info = sjs_info[which_sjs]
 
 print(len(new_good_names))
 print(new_good_names)
 
 if phase == 'learn' and experiment == 'rl':
+
+    sj_covariates = {
+            'AB.gain': ['Beta','alphaG','alphaL'],
+            'CD.gain': ['Beta','alphaG','alphaL'],
+            'EF.gain': ['Beta','alphaG','alphaL'],
+            'fb.gain': ['Beta','alphaG','alphaL']
+            }
+
     for roi in analysis_info['rl_train_rois_anat']: 
         all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_hard.tsv') for ngn in new_good_names]
         all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-        rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, output_filename = op.join(opd, roi + '_deco_train_hard.pdf'))
-    for roi in analysis_info['rl_train_rois_stat']: 
-        all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_projection.tsv') for ngn in new_good_names]
-        all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-        rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, output_filename = op.join(opd, roi + '_deco_train_projection.pdf'))
+        rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_hard.pdf'))
+    # for roi in analysis_info['rl_train_rois_stat']: 
+    #     all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_projection.tsv') for ngn in new_good_names]
+    #     all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
+    #     rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_projection.pdf'))
 
         print(op.join(opd, roi + '_deco_train_projection.pdf'))
 

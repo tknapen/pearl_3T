@@ -29,7 +29,7 @@ from IPython import embed as shell
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s rl learn &
+#     python postprocessing.py sub-$s rl test &
 # done
 # python across.py rl learn
 
@@ -118,7 +118,7 @@ if phase == 'learn' and experiment == 'rl':
 
 
 if experiment == 'stop':
-    stop.roi.fit_FIR_roi(experiment = 'stop',
+    stop.roi.fit_FIR_roi(experiment = experiment,
                     h5_file = op.join(opd, 'h5', 'roi.h5'),
                     in_files = in_files,
                     vol_regressor_list = volreg_files, 

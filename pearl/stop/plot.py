@@ -264,8 +264,9 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     all_data = [pd.read_csv(df, sep = '\t', index_col=0, header=0).T for df in all_deco_files]
     timepoints = np.array(all_data[0].index, dtype = float)
 
-    all_data_np = np.array([np.array(ad[list(sj_covariates.keys())]) for ad in all_data])
-    condition_names = list(sj_covariates.keys())
+    condition_names = ['correct', 'succesful_stop', 'Failed_stop'] # -> don't leave to chance but copied from roi.py where the deconv happens
+    all_data_np = np.array([np.array(ad[condition_names]) for ad in all_data])
+    # shell()
 
     ##############################################################################################################
     #
@@ -304,12 +305,12 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     #
     ##############################################################################################################
 
-    color_dict = dict(zip(['correct','succesful_stop','Failed_stop'], ['g','r','orange']))
+    color_dict = dict(zip(condition_names, ['g','r','orange']))
     cv_color_dict = dict(zip(['int','SSRT','ac','med','Beta'],['k','r','g','orange','brown']))
 
     sig = -np.log10(stats_threshold)
     sn.set_style('ticks')
-    f = pl.figure(figsize = (5,12))
+    f = pl.figure(figsize = (4,12))
     s = f.add_subplot(3,1,1)
     s.set_title(roi + ' gain')
     s.axhline(0, c='k', lw = 0.25)
@@ -322,6 +323,7 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     # plot_significance_lines(all_data_np, time_points = timepoints, offset=0.0125+rl_test_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [color_dict[cn] for cn in condition_names])
     s.set_ylim(stop_FIR_amplitude_range)
     s.set_xlim([interval[0]+1, interval[1]-1])
+    s.set_xticks([0,5,10])    
     sn.despine(offset = 10, ax = s)
     pl.legend()
 
@@ -337,10 +339,7 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     s.set_xlabel('Time [s]')
     s.set_ylabel('beta values')        
 
-    betas = beta_dict[nec]
-    p_T_vals = p_T_dict[nec]
-
-    for j, bn in enumerate(beta_dict.keys()):
+    for j, bn in enumerate(condition_names):
         # find out which color to use
         this_color = color_dict[bn]
         betas = beta_dict[bn][second_plot_covariate]
@@ -361,40 +360,56 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
                 pl.plot([timepoints[time_sig[0]]-0.5, timepoints[time_sig[-1]] + 0.5], [0.0125 + stop_FIR_pe_range[0]+0.0125*j, 0.0125 + stop_FIR_pe_range[0]+0.0125*j], color = this_color, linewidth = 3.0, alpha = 0.8)
     s.set_ylim(stop_FIR_pe_range)
     s.set_xlim([interval[0]+1, interval[1]-1])
+    s.set_xticks([0,5,10])    
     pl.legend()
     sn.despine(offset = 10, ax = s)    
     pl.tight_layout()
     # shell()
-
+    # for i in range(len(timepoints)):
+    #     print(i, timepoints[i]) 
     ##############################################################################################################
     #
     # Plotting #3, split on SSRT
     #
     ##############################################################################################################
-    
-    sf_color_dict = dict(zip(['SSRT_short', 'SSRT_long'],['k','gray']))
-    sf_rename_dict = dict(zip(['SSRT_short', 'SSRT_long'],['fast','slow']))
+    sf_names = ['SSRT_short', 'SSRT_long']
+    sf_color_dict = dict(zip(sf_names,['k','gray']))
+    sf_rename_dict = dict(zip(sf_names,['fast','slow']))
 
     s = f.add_subplot(3,1,3)
-    s.set_title(roi + ' corrs split ' + slow_fast_condition)
-    s.axhline(0, c='k', lw = 0.25)
-    s.axvline(0, c='k', lw = 0.25)
-    s.set_xlabel('Time [s]')
-    s.set_ylabel('beta values')        
+    s.set_title('Corr ' + slow_fast_condition)
+    # s.axhline(0, c='k', lw = 0.25)
+    # s.axvline(0, c='k', lw = 0.25)
+    # s.set_xlabel('Time [s]')
+    # s.set_ylabel('beta values')        
 
-    for j, bn in enumerate(sf_color_dict.keys()):
-        # find out which color to use
-        this_color = sf_color_dict[bn]
-        these_subjects = np.array(subj_data['SSRT_group'] == bn)
-        split_data = all_data_np[these_subjects,:,1].T # select the timecourse of 'successful stop'
+    # f = pl.figure()
+    # s = f.add_subplot(111)
+    # shell()
+    # SSRT_median = np.median(np.array(subj_data['SSRT'], dtype = float))
+    # pl.scatter(all_data_np[:,15,1],np.array(subj_data['SSRT'], dtype = float))
+    ssrt_pd = pd.DataFrame(np.array([all_data_np[:,15,1],np.array(subj_data['SSRT'], dtype = float)]).T, index=np.arange(all_data_np.shape[0]), columns=['BOLD','SSRT'])
+    sn.regplot("BOLD", "SSRT", data=ssrt_pd, color='r', ax=s)
+    # sn.lmplot(x="BOLD", y="SSRT", data=ssrt_pd, hue='r', ax=s)
+    s.set_ylim([0,600])
+    s.set_xlim([-0.3,0.25])
 
-        sn.tsplot(split_data.T[:,:,np.newaxis], time = timepoints, condition = sf_rename_dict[bn], legend = True, ax = s, color = sf_color_dict[bn])
+    # for j, bn in enumerate(sf_names):
+    #     # find out which color to use
+    #     this_color = sf_color_dict[bn]
+    #     if bn == 'SSRT_short':
+    #         these_subjects = np.array(np.array(subj_data['SSRT'], dtype = float) < SSRT_median, dtype = bool)
+    #     elif bn == 'SSRT_long':
+    #         these_subjects = np.array(np.array(subj_data['SSRT'], dtype = float) >= SSRT_median, dtype = bool)
+    #     split_data = all_data_np[these_subjects,:,condition_names.index(slow_fast_condition)].T # select the timecourse of 'successful stop': index # 1
 
-    s.set_ylim(stop_FIR_amplitude_range)
-    s.set_xlim([interval[0]+1, interval[1]-1])
-    pl.legend()
+    #     sn.tsplot(split_data.T[:,:,np.newaxis], time = timepoints, condition = sf_rename_dict[bn], legend = True, ax = s, color = sf_color_dict[bn])
+
+
+    # pl.legend()
     sn.despine(offset = 10, ax = s)    
     pl.tight_layout()
+    # pl.show()
     # shell()
 
 

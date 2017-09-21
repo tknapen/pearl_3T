@@ -319,7 +319,7 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
 
     min_d = all_data_np.min()
     sn.tsplot(all_data_np, time = timepoints, condition = condition_names, legend = True, ax = s, color = color_dict)
-    # plot_significance_lines(all_data_np, time_points = timepoints, offset=0.0125+rl_test_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [color_dict[cn] for cn in condition_names])
+    # plot_significance_lines(all_data_np, time_points = timepoints, offset=0.0125+stop_FIR_amplitude_range[0], slope=0.025, p_value_cutoff = 0.05, pal = [color_dict[cn] for cn in condition_names])
     s.set_ylim(stop_FIR_amplitude_range)
     s.set_xlim([interval[0]+1, interval[1]-1])
     s.set_xticks([0,5,10])    
@@ -376,9 +376,9 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     s = f.add_subplot(3,1,3)
     s.set_title('Corr ' + slow_fast_condition)
     peak_timepoint = timepoints == np.argmax(p_T_dict[slow_fast_condition][second_plot_covariate])
-    ssrt_pd = pd.DataFrame(np.array([all_data_np[:,peak_timepoint,1].squeeze(), np.array(subj_data['SSRT'], dtype = float)]).T, index=np.arange(all_data_np.shape[0]), columns=['BOLD','SSRT'])
-    sn.regplot("BOLD", "SSRT", data=ssrt_pd, color='r', ax=s)
-    s.set_ylim([0,600])
+    ssrt_pd = pd.DataFrame(np.array([all_data_np[:,peak_timepoint,1].squeeze(), np.array(subj_data[second_plot_covariate], dtype = float)]).T, index=np.arange(all_data_np.shape[0]), columns=['BOLD',second_plot_covariate])
+    sn.regplot("BOLD", second_plot_covariate, data=ssrt_pd, color='r', ax=s)
+    # s.set_ylim([0,600])
     s.set_xlim([-0.3,0.25])
     sn.despine(offset = 10, ax = s)    
     pl.tight_layout()
@@ -388,3 +388,5 @@ def plot_deco_results_for_publication(all_deco_files, subj_data,
     for i, cn in enumerate(condition_names):
         peak_time = timepoints == np.argmax(p_T_dict[cn][second_plot_covariate])
         print(cn, timepoints[peak_time], scipy.stats.pearsonr(all_data_np[:,peak_time,i].squeeze(), ssrt_data))
+
+    shell()

@@ -157,19 +157,27 @@ if phase == 'test' and experiment == 'rl':
         #                                     output_filename = op.join(opd, roi + '_deco_%s.pdf'%fn_suffix),
         #                                     rl_test_FIR_amplitude_range = analysis_info['rl_test_FIR_amplitude_range'], rl_test_FIR_pe_range = analysis_info['rl_test_FIR_pe_range'])
     # a final plot
-    sj_covariates = sj_covariates_dicts[2]
+    sj_cov_nr = 3
+    sj_covariates = sj_covariates_dicts[sj_cov_nr]
     roi = 'maxSTN25exc_flirt'
-    fn_suffix = 'publication'
+    fn_suffix = 'publication_%i'%sj_cov_nr
     which_signal_selection = 'projection'
     all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_test_%s.tsv'%which_signal_selection) for ngn in new_good_names]
     all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
     rl.plot.plot_deco_results_for_publication(all_deco_files,
                     good_sjs_info, roi, analysis_info['deconvolution_interval'],
-                    output_filename = op.join(opd, roi + '_deco_%s.pdf'%fn_suffix),
+                    output_filename = op.join(opd, roi + '_deco_%s_%s.pdf'%(fn_suffix, 'SSRT')),
                     sj_covariates = sj_covariates,
                     rl_test_FIR_amplitude_range = analysis_info['rl_test_FIR_amplitude_range'], 
-                    rl_test_FIR_pe_range = analysis_info['rl_test_FIR_pe_range'])
-
+                    rl_test_FIR_pe_range = analysis_info['rl_test_FIR_pe_range'],
+                    second_plot_covariate = 'SSRT')
+    rl.plot.plot_deco_results_for_publication(all_deco_files,
+                    good_sjs_info, roi, analysis_info['deconvolution_interval'],
+                    output_filename = op.join(opd, roi + '_deco_%s_%s.pdf'%(fn_suffix, 'Beta')),
+                    sj_covariates = sj_covariates,
+                    rl_test_FIR_amplitude_range = analysis_info['rl_test_FIR_amplitude_range'], 
+                    rl_test_FIR_pe_range = analysis_info['rl_test_FIR_pe_range'],
+                    second_plot_covariate = 'Beta')
 
 if experiment == 'stop':
     sj_covariates_dicts = [
@@ -205,15 +213,23 @@ if experiment == 'stop':
     # a final plot
     sj_covariates = sj_covariates_dicts[1]
     roi = 'maxSTN25exc_flirt'
-    fn_suffix = 'publication'
+    fn_suffix = 'publication_%i'%1
     all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_stop.tsv') for ngn in new_good_names]
     all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
     stop.plot.plot_deco_results_for_publication(all_deco_files, 
                     good_sjs_info, roi, analysis_info['deconvolution_interval'],
-                    output_filename = op.join(opd, roi + '_deco_%s.pdf'%fn_suffix),
+                    output_filename = op.join(opd, roi + '_deco_%s_%s.pdf'%(fn_suffix, 'SSRT')),
                     sj_covariates = sj_covariates,
                     stop_FIR_amplitude_range = analysis_info['stop_FIR_amplitude_range'], 
-                    stop_FIR_pe_range = analysis_info['stop_FIR_pe_range'])
+                    stop_FIR_pe_range = analysis_info['stop_FIR_pe_range'],
+                    second_plot_covariate = 'SSRT')
+    # stop.plot.plot_deco_results_for_publication(all_deco_files, 
+    #                 good_sjs_info, roi, analysis_info['deconvolution_interval'],
+    #                 output_filename = op.join(opd, roi + '_deco_%s_%s.pdf'%(fn_suffix, 'Beta')),
+    #                 sj_covariates = sj_covariates,
+    #                 stop_FIR_amplitude_range = analysis_info['stop_FIR_amplitude_range'], 
+    #                 stop_FIR_pe_range = analysis_info['stop_FIR_pe_range'],
+    #                 second_plot_covariate = 'Beta')
 # pl.show()
 
 

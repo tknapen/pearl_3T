@@ -7,7 +7,7 @@ def create_pearl_pp_workflow(analysis_info, name='pearl'):
     from nipype.interfaces.utility import Function, Merge, IdentityInterface
     from spynoza.nodes.utils import get_scaninfo, dyns_min_1, topup_scan_params, apply_scan_params
     from nipype.interfaces.io import SelectFiles, DataSink
-
+ 
     # Importing of custom nodes from spynoza packages; assumes that spynoza is installed:
     # pip install git+https://github.com/spinoza-centre/spynoza.git@develop
     from spynoza.nodes.filtering import savgol_filter

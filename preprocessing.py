@@ -17,11 +17,11 @@ import nipype.pipeline.engine as pe
 # source deactivate
 # source activate cf
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {001..049}
+# for s in {001..012}
 # do
 #     echo sub-$s
 #     # python preprocessing.py sub-$s stop &
-#     python preprocessing.py sub-$s rl ;
+#     python preprocessing.py sub-$s rl &
 # done
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID

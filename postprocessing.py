@@ -29,7 +29,7 @@ from IPython import embed as shell
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s rl test &
+#     python postprocessing.py sub-$s rl learn &
 # done
 # python across.py rl learn
 

@@ -71,14 +71,24 @@ if phase == 'learn' and experiment == 'rl':
             'fb.gain': ['Beta','alphaG','alphaL']
             }
 
-    for roi in analysis_info['rl_train_rois_anat']: 
-        all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_hard.tsv') for ngn in new_good_names]
-        all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-        rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_hard.pdf'))
-    # for roi in analysis_info['rl_train_rois_stat']: 
-    #     all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_projection.tsv') for ngn in new_good_names]
+    # for roi in analysis_info['rl_train_rois_anat']: 
+    #     print("""
+    #             ############################################################################
+    #             ####### %s
+    #             ############################################################################
+    #         """%roi)
+    #     all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_hard.tsv') for ngn in new_good_names]
     #     all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
-    #     rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_projection.pdf'))
+    #     rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_hard.pdf'))
+    for roi in analysis_info['rl_train_rois_stat']: 
+        print("""
+                ############################################################################
+                ####### %s
+                ############################################################################
+            """%roi)
+        all_deco_files = [os.path.join(os.path.split(opd)[0], ngn, 'roi', phase, roi + '_deco_train_projection.tsv') for ngn in new_good_names]
+        all_deco_files = [af for af in all_deco_files if os.path.isfile(af)]
+        rl.plot.plot_deco_results_train(all_deco_files, good_sjs_info, sj_covariates = sj_covariates, output_filename = op.join(opd, roi + '_deco_train_projection.pdf'))
 
         print(op.join(opd, roi + '_deco_train_projection.pdf'))
 

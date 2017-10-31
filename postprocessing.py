@@ -26,10 +26,10 @@ from IPython import embed as shell
 # # python across.py stop Stop
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {001..049}
+# for s in {038..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s rl learn &
+#     python postprocessing.py sub-$s rl learn ;
 # done
 # python across.py rl learn
 

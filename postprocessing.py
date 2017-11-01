@@ -21,12 +21,12 @@ from IPython import embed as shell
 # for s in {001..049}
 # do
 #     echo sub-$s
-#     python postprocessing.py sub-$s stop Stop &
+#     python postprocessing.py sub-$s stop Stop;
 # done
-# # python across.py stop Stop
+# python across.py stop Stop
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {038..049}
+# for s in {001..049}
 # do
 #     echo sub-$s
 #     python postprocessing.py sub-$s rl learn ;

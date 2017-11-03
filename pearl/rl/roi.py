@@ -160,7 +160,7 @@ def fit_FIR_roi_train(experiment,
         projected_time_course = np.dot(time_course_data[over_mask_threshold].T, iceberg_tip) / np.sum(iceberg_tip)
         av_time_course = time_course_data[over_mask_threshold].mean(axis = 0)
 
-        if which_signal_selection == 'projection':
+        if which_signal_selection in ['projection', 'vis']:
             this_timecourse = projected_time_course
         elif which_signal_selection == 'hard':
             this_timecourse = av_time_course

@@ -26,7 +26,7 @@ from IPython import embed as shell
 # python across.py stop Stop
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {001..049}
+# for s in {026..049}
 # do
 #     echo sub-$s
 #     python postprocessing.py sub-$s rl learn ;
@@ -115,6 +115,27 @@ if phase == 'learn' and experiment == 'rl':
                     output_tsv_dir = op.join(opd, 'roi', phase),
                     which_signal_selection = which_signal_selection
                     )
+
+    which_signal_selection = 'vis'
+    rl.roi.fit_FIR_roi_train(experiment = 'rl',
+                    h5_file = op.join(opd, 'h5', 'roi.h5'),
+                    in_files = in_files,
+                    vol_regressor_list = volreg_files, 
+                    behavior_file_list = behavior_files, 
+                    mapper_file = 'zstat4_flirt',
+                    mask_threshold = analysis_info['stat_mask_threshold'],
+                    mask_direction = 'pos',
+                    fmri_data_type = 'psc',
+                    fir_frequency = analysis_info['deconvolution_frequency'],
+                    fir_interval = analysis_info['deconvolution_interval'],
+                    roi_list = analysis_info['rl_train_rois_vis'],
+                    output_pdf_dir = op.join(opd, 'figs', phase),
+                    output_tsv_dir = op.join(opd, 'roi', phase),
+                    which_signal_selection = which_signal_selection
+                    )
+
+
+
 
 
 if experiment == 'stop':

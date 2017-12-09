@@ -35,7 +35,7 @@ def plot_deco_results_train(all_deco_files, subj_data, sj_covariates = {}, outpu
     stats_threshold = 0.0125
     all_data = []
     for df in all_deco_files:
-     all_data.append(pd.read_csv(df, sep = '\t', index_col=0, header=0).T)
+        all_data.append(pd.read_csv(df, sep = '\t', index_col=0, header=0).T)
     timepoints = np.array(all_data[0].index, dtype = float)
 
     # convert to numpy
@@ -124,7 +124,8 @@ def plot_deco_results_train(all_deco_files, subj_data, sj_covariates = {}, outpu
             # z-score
             Xt[j+1,:] = (this_cov - this_cov.mean()) / this_cov.std()
         X.append(Xt.T)
-        
+    
+    # shell()
     # across subjects GLM
     p_T_dict = {}
     beta_dict = {}

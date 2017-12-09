@@ -51,7 +51,7 @@ if (experiment == 'stop') | ((experiment == 'rl') and (phase == 'test')):
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs] 
 elif (experiment == 'rl') and (phase == 'learn'):
-    which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop')
+    which_sjs = (sjs_info['Incl_ex'] == 'ok') + (sjs_info['Incl_ex'] == 'stop') - (sjs_info['participant_id'] == 'sub-004') - (sjs_info['participant_id'] == 'sub-033')
     new_good_names = np.array(sjs_info['participant_id'][which_sjs])
     good_sjs_info = sjs_info[which_sjs]
 # elif (experiment == 'rl') and (phase == 'learn'):
@@ -61,7 +61,7 @@ elif (experiment == 'rl') and (phase == 'learn'):
 
 print(len(new_good_names))
 print(new_good_names)
-
+# shell()
 if phase == 'learn' and experiment == 'rl':
 
     sj_covariates = {

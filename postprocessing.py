@@ -26,7 +26,7 @@ from IPython import embed as shell
 # python across.py stop Stop
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {026..049}
+# for s in 007 010 023 031 038
 # do
 #     echo sub-$s
 #     python postprocessing.py sub-$s rl learn ;

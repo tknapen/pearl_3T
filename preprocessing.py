@@ -25,11 +25,12 @@ import nipype.pipeline.engine as pe
 # done
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
-# for s in {013..026}
+# for s in 004 031 033
 # do
 #     echo sub-$s
 #     # python preprocessing.py sub-$s stop &
-#     python preprocessing.py sub-$s rl ;
+#     # python preprocessing.py sub-$s rl &
+#     recon-all -all -subjid sub-${s} -i /home/raw_data/2017/reward/pearl_3T/sub-${s}/anat/sub-${s}_T1w.nii.gz -openmp 8 
 # done
 
 # export SUBJECTS_DIR=/home/shared/2017/reward/pearl_3T/FS_SJID
